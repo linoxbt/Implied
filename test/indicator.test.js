@@ -124,11 +124,19 @@ test('high-IV stock: upside tail tag, fat right tail', async () => {
   assert.ok(at(6) - at(3) > 1.5 * (at(3) - at(0)));
 });
 
-test('illiquid ticker: clear message, nothing painted', async () => {
+// With nothing to draw, every line is still registered (same names, all
+// empty) before the message, so saving the indicator on such a chart works.
+const assertEmptyPaint = (out, ref) => {
+  assert.deepEqual(out.projections.map(p => p.name), ref.projections.map(p => p.name));
+  assert.equal(out.fills.length, ref.fills.length);
+  assert.equal(out.overlays.length, 1);
+  out.projections.forEach(p => assert.ok(p.series.every(v => v == null), p.name + ' should be empty'));
+};
+
+test('illiquid ticker: clear message, every line registered but empty', async () => {
   const out = await scenario('ILLIQ');
   assert.equal(out.error, 'Not enough liquid strikes on ILLIQ to build a distribution.');
-  assert.equal(out.projections.length, 0);
-  assert.equal(out.fills.length, 0);
+  assertEmptyPaint(out, await scenario('SPY'));
 });
 
 test('no options listed (crypto, futures): "No options data" message', async () => {
@@ -136,7 +144,7 @@ test('no options listed (crypto, futures): "No options data" message', async () 
   for (const schedule of [[], null, { error: 'Symbol has no options' }]) {
     const out = await runIndicator({ ticker: 'BTCUSD', schedule, chain: {}, ...c });
     assert.match(out.error, /^No options data for BTCUSD\. Implied needs a ticker with listed options and an OPRA subscription\./);
-    assert.equal(out.projections.length, 0);
+    assertEmptyPaint(out, await scenario('SPY'));
   }
 });
 
@@ -152,6 +160,7 @@ test('non-Daily timeframe: Daily-only message before any request', async () => {
     const out = await runIndicator({ ticker: 'SPY', resolution, schedule, chain, ...fx.candles(580) });
     assert.equal(out.error, 'Implied runs on the Daily timeframe only.');
     assert.equal(out.requests.length, 0);
+    assertEmptyPaint(out, await scenario('SPY'));
   }
   for (const resolution of ['D']) {
     const out = await runIndicator({ ticker: 'SPY', resolution, schedule, chain, ...fx.candles(580) });

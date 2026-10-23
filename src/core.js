@@ -58,7 +58,7 @@ function vega76(F, K, T, sig, D) {
 function impliedVol(price, F, K, T, D) {
   const intrinsic = D * Math.max(F - K, 0);
   if (!(price > intrinsic + 1e-10 * F) || !(price < D * F)) return null;
-  let lo = 0.005, hi = 5;
+  let lo = 0.005, hi = 20; // up to 2000%: short-dated options around a binary event
   if (black76Call(F, K, T, lo, D) > price || black76Call(F, K, T, hi, D) < price) return null;
   for (let i = 0; i < 100 && hi - lo > 1e-7; i++) {
     const m = (lo + hi) / 2;

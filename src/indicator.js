@@ -29,49 +29,62 @@ const PROJECTION_DAYS = 'calendar';
 const RATE = RATE_PCT / 100;
 const COLORS = { band: '#5b8def', median: '#9aa0b4', fork: '#ffb347', valley: '#7d8296' };
 
-assert(String(current.resolution).toUpperCase() === 'D', 'Implied runs on the Daily timeframe only.');
-
-// ---------- Fetch ----------
+// ---------- Fetch and model ----------
+// Every paint call below runs on every execution, even when there is nothing
+// to draw (TrendSpider registers lines from the paint calls it sees), so a
+// problem is recorded here, the empty series are painted, and the message is
+// raised at the very end.
 const NO_DATA = 'No options data for ' + current.ticker + '. Implied needs a ticker with listed options and an OPRA subscription.';
-const [schedule, chain] = await Promise.all([
-  request.options_schedule(current.ticker),
-  request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a'], 'all'),
-]);
-assert(schedule && !schedule.error && Array.isArray(schedule) && schedule.length > 0,
-  NO_DATA + (schedule && schedule.error ? ' (' + schedule.error + ')' : ''));
-assert(chain && !chain.error && chain.resultByExpiration,
-  NO_DATA + (chain && chain.error ? ' (' + chain.error + ')' : ''));
+function Stop(message) { this.message = message; }
+function need(cond, message) { if (!cond) throw new Stop(message); }
 
-const lastClose = close[close.length - 1];
-const quotedSpot = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
-const SPOT = quotedSpot > 0 ? quotedSpot : lastClose;
-assert(SPOT > 0 && lastClose > 0, NO_DATA);
-// The cloud starts at the last close; every price shown (bands, Fork ticks,
-// summary panel) is on that same footing, scaled by lastClose / SPOT.
-const SCALE = lastClose / SPOT;
-const lastTimeRaw = Number(time[time.length - 1]);
-const lastTime = lastTimeRaw > 1e12 ? lastTimeRaw / 1000 : lastTimeRaw; // seconds
+async function buildCloud() {
+  need(String(current.resolution).toUpperCase() === 'D', 'Implied runs on the Daily timeframe only.');
+  const lastClose = Number(close[close.length - 1]);
+  need(lastClose > 0, 'Implied needs price history on the chart.');
+  const [schedule, chain] = await Promise.all([
+    request.options_schedule(current.ticker),
+    request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a'], 'all'),
+  ]);
+  need(schedule && !schedule.error && Array.isArray(schedule) && schedule.length > 0,
+    NO_DATA + (schedule && schedule.error ? ' (' + schedule.error + ')' : ''));
+  need(chain && !chain.error && chain.resultByExpiration,
+    NO_DATA + (chain && chain.error ? ' (' + chain.error + ')' : ''));
 
-// ---------- Pick expiries and model them ----------
-// Expiries are matched to the chain on a normalized YYMMDD key and placed by
-// their own timestamp; for each target horizon the nearest expiry that models
-// cleanly is kept (see selectExpiries in core). A ticker with an expiry every
-// weekday still gets a cloud that reaches weeks out.
-const { candidates, shapes: expiryShapes } = selectExpiries({
-  schedule, resultByExpiration: chain.resultByExpiration, spot: SPOT, lastTime, rate: RATE,
-  maxSpread: MAX_SPREAD, minStrikes: MIN_STRIKES, count: EXPIRIES, maxBars: MAX_PROJECTION, mode: PROJECTION_DAYS,
-});
-assert(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + ' days.');
-assert(expiryShapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
+  const quotedSpot = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
+  const spot = quotedSpot > 0 ? quotedSpot : lastClose;
+  const lastTimeRaw = Number(time[time.length - 1]);
+  const lastTime = lastTimeRaw > 1e12 ? lastTimeRaw / 1000 : lastTimeRaw; // seconds
 
-// ---------- Project ----------
-// The model's clock (T) runs from now; the chart's runs from the last candle,
-// so each expiry is placed at its own day offset.
-const lastDay = expiryShapes[expiryShapes.length - 1].day;
-const projTimeline = projectionTimeline(PROJECTION_DAYS, lastTime, lastDay);
-const placed = expiryShapes.map(s => ({ F: s.F, q: s.q, T: s.day / 365 }));
-const bandValues = projectQuantiles(placed, SPOT, lastClose, projTimeline.times)
-  .map(vals => vals.slice(0, MAX_PROJECTION));
+  // Expiries are matched to the chain on a normalized YYMMDD key and placed by
+  // their own timestamp; for each target horizon the nearest expiry that
+  // models cleanly is kept (see selectExpiries in core). A ticker with an
+  // expiry every weekday still gets a cloud that reaches weeks out.
+  const { candidates, shapes } = selectExpiries({
+    schedule, resultByExpiration: chain.resultByExpiration, spot, lastTime, rate: RATE,
+    maxSpread: MAX_SPREAD, minStrikes: MIN_STRIKES, count: EXPIRIES, maxBars: MAX_PROJECTION, mode: PROJECTION_DAYS,
+  });
+  need(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + ' days.');
+  need(shapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
+
+  // The model's clock (T) runs from now; the chart's runs from the last
+  // candle, so each expiry is placed at its own day offset. The cloud starts
+  // at the last close; every price shown (bands, Fork ticks, summary panel)
+  // is on that same footing, scaled by lastClose / spot.
+  const timeline = projectionTimeline(PROJECTION_DAYS, lastTime, shapes[shapes.length - 1].day);
+  const placed = shapes.map(s => ({ F: s.F, q: s.q, T: s.day / 365 }));
+  const bands = projectQuantiles(placed, spot, lastClose, timeline.times).map(vals => vals.slice(0, MAX_PROJECTION));
+  return { problem: null, shapes, timeline, bands, scale: lastClose / spot };
+}
+
+let cloud;
+try {
+  cloud = await buildCloud();
+} catch (err) {
+  if (!(err instanceof Stop)) throw err;
+  cloud = { problem: err.message, shapes: [], timeline: { times: [0], barOfDay: { 0: 0 } }, bands: QS.map(() => [null]), scale: 1 };
+}
+const expiryShapes = cloud.shapes, projTimeline = cloud.timeline, bandValues = cloud.bands, SCALE = cloud.scale;
 
 // ---------- Paint: bands ----------
 const BAND_NAMES = ['Implied 2.5%', 'Implied 10%', 'Implied 25%', 'Implied median', 'Implied 75%', 'Implied 90%', 'Implied 97.5%'];
@@ -115,7 +128,15 @@ paint_projection(forkMarks.valley, { name: 'Fork least likely', color: COLORS.va
 // a small chart of the distribution at the expiry that matters most (the first
 // Fork if there is one, otherwise the farthest expiry).
 const focus = (SHOW_FORK && forkShapes[0]) || expiryShapes[expiryShapes.length - 1];
-paint_overlay('Implied summary', { position: 'top_left' }, summaryOverlay(focus, expiryShapes));
+paint_overlay('Implied summary', { position: 'top_left' }, focus ? summaryOverlay(focus, expiryShapes) : messageOverlay(cloud.problem));
+
+// Nothing to draw: show why, after every paint call has run.
+assert(!cloud.problem, cloud.problem);
+
+function messageOverlay(message) {
+  return { background: 'var(--background-color)', border: 'solid 1px var(--border-color)', borderRadius: '8px',
+    rows: [{ cells: [{ text: 'IMPLIED · ' + message, color: 'var(--text-color)', fontSize: '12px', padding: '8px 10px', textAlign: 'left' }] }] };
+}
 
 function summaryOverlay(s, all) {
   const text = (t, extra) => Object.assign({ text: t, color: 'var(--text-color)', fontSize: '12px', padding: '2px 10px', textAlign: 'left' }, extra || {});
@@ -132,7 +153,7 @@ function summaryOverlay(s, all) {
     } }] });
   }
   rows.push({ cells: [text('Median ' + formatPrice(s.q[3] * SCALE) + ' · 95% range ' + formatPrice(s.q[0] * SCALE) + ' – ' + formatPrice(s.q[6] * SCALE))] });
-  rows.push({ cells: [text(tag ? tag + ' (to ' + all[all.length - 1].dte + ' days)' : 'Close to symmetric')] });
+  rows.push({ cells: [text(tag ? tag + ' (to ' + all[all.length - 1].dte + (all[all.length - 1].dte === 1 ? ' day)' : ' days)') : 'Close to symmetric')] });
   if (SHOW_FORK && s.fork) {
     const f = { low: s.fork.low * SCALE, high: s.fork.high * SCALE, valley: s.fork.valley * SCALE };
     rows.push({ cells: [text(forkLabel(f), { color: COLORS.fork, fontWeight: '600' })] });

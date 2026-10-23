@@ -7,7 +7,7 @@ Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider'
 | Item | What the docs say | What the script does |
 | --- | --- | --- |
 | `options_data_for_all_expirations(ticker, strikes, metrics, types)` | `strikes` is the number of strikes on **each side of the price**, max 40; every expiry is returned | Requests 40. (The spec's skeleton passed 5, which would have left too few strikes and no cloud.) |
-| Field codes | `b` bid, `a` ask, `l` last; `iv`, `oi` and greeks also exist | Uses `b`, `a`, `l`; solves IV itself so it controls the cleaning |
+| Field codes | `b` bid, `a` ask, `l` last; `iv`, `oi` and greeks also exist | Uses `b` and `a`; solves IV itself so it controls the cleaning |
 | `describe_indicator(name, type)` | `type` is `price` or `lower`, default `price` | `'price'`: drawn on the underlying's chart |
 | `current.resolution` | `D` on daily charts | Requires `D` |
 | `input.boolean(title, default)` | Exists (checkbox) | Show Fork is a checkbox |

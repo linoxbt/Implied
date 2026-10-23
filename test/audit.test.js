@@ -250,3 +250,11 @@ test('Fork ticks cover the last three bars up to each forked expiry', async () =
   const ticked = out.projections[7].series.map((v, i) => (v != null ? i : -1)).filter(i => i >= 0);
   for (const bar of [8, 9, 10, 15, 16, 17]) assert.ok(ticked.includes(bar), `bar ${bar} in ${ticked}`);
 });
+
+test('implied vol above 500% is solved (short-dated binary-event options)', () => {
+  for (const sig of [6, 8]) {
+    const T = 7 / 365, F = 24, D = Math.exp(-0.04 * T);
+    const price = core.black76Call(F, 30, T, sig, D);
+    assert.ok(Math.abs(core.impliedVol(price, F, 30, T, D) / sig - 1) < 1e-4, `vol ${sig}`);
+  }
+});

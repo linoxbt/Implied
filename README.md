@@ -52,7 +52,7 @@ For each expiry, Implied:
 2. **Finds the forward** F from put-call parity at the five strikes nearest spot (median), which absorbs dividends and borrow cost.
 3. **Solves implied volatility** (Black-76, bisection) on out-of-the-money quotes only. Puts below F are converted to calls with parity.
 4. **Fits a smooth smile** of total variance w(k) = σ²T in log-moneyness k = ln(K/F). It uses a penalized smoothing spline, with each quote weighted by the noise its bid-ask spread implies. The smoothing strength is picked per chain by generalized cross-validation, so tight chains keep their detail and noisy ones are smoothed harder. The wings extend linearly within Lee's moment bound (|dw/dk| ≤ 2).
-5. **Takes the density** by Breeden–Litzenberger, the discounted second derivative of the rebuilt call price in strike, on a 241-point grid. Negatives are clipped and the result is normalized.
+5. **Takes the density** by Breeden–Litzenberger, the discounted second derivative of the rebuilt call price in strike, on a 601-point log-strike grid. If the result has negative probability (butterfly arbitrage), the smile is smoothed harder until it does not; an expiry whose probability does not add up is skipped.
 6. **Reads the shape:** quantiles, the skew ratio (97.5−50)/(50−2.5), and the Fork. Two peaks each at least 25% of the tallest and at least 3% of F apart, with the valley between them below 70% of the smaller peak.
 7. **Projects into the future.** Each quantile is carried as u = ln(q/F)/√T. That value is held flat before the first expiry and interpolated linearly in time between expiries, then re-expanded with √t. The cloud starts at the last close and widens like the square root of time.
 
