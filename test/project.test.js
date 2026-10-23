@@ -14,12 +14,12 @@ const shape = dte => {
 const shapes = [shape(7), shape(30), shape(60)];
 
 test('starts at the anchor, hits each expiry exactly (scaled by anchor/S), stops after the last', () => {
-  const { times, barOfDte } = core.projectionTimeline('calendar', 0, 60);
+  const { times, barOfDay } = core.projectionTimeline('calendar', 0, 60);
   const anchor = 101;
   const lines = core.projectQuantiles(shapes, S, anchor, times);
   lines.forEach(l => assert.equal(l[0], anchor));
   for (const s of shapes) s.q.forEach((q, j) => {
-    const got = lines[j][barOfDte[s.dte]];
+    const got = lines[j][barOfDay[s.dte]];
     assert.ok(Math.abs(got / (q * anchor / S) - 1) < 1e-9, `dte ${s.dte} j ${j}`);
   });
   const tl = core.projectionTimeline('calendar', 0, 70);
@@ -62,12 +62,12 @@ test('bands never cross and are continuous (no jumps at expiries)', () => {
 
 test('trading-day timeline skips weekends but keeps calendar time', () => {
   const friday = Date.UTC(2026, 9, 23) / 1000; // Fri 23 Oct 2026
-  const { times, barOfDte } = core.projectionTimeline('trading', friday, 10);
-  assert.equal(barOfDte[1], 0); // Saturday
-  assert.equal(barOfDte[3], 1); // Monday is the first bar
-  assert.equal(barOfDte[10], 6); // Fri 30 Oct... through Mon 2 Nov
+  const { times, barOfDay } = core.projectionTimeline('trading', friday, 10);
+  assert.equal(barOfDay[1], 0); // Saturday
+  assert.equal(barOfDay[3], 1); // Monday is the first bar
+  assert.equal(barOfDay[10], 6); // Fri 30 Oct... through Mon 2 Nov
   assert.equal(times[1], 3 / 365);
   assert.equal(times.length, 7);
   const ms = core.projectionTimeline('trading', friday * 1000, 10); // milliseconds also accepted
-  assert.deepEqual(ms.barOfDte, barOfDte);
+  assert.deepEqual(ms.barOfDay, barOfDay);
 });

@@ -42,11 +42,16 @@ test('natural spline interpolates its knots and is linear-exact', () => {
   near(s.slope(2.2), 2, 1e-12);
 });
 
-test('LU solver solves a small system and flags a singular one', () => {
-  const solve = core.luFactor([[4, 1, 0], [1, 3, 1], [0, 1, 2]]);
-  const x = solve([5, 5, 3]);
-  [1, 1, 1].forEach((v, i) => near(x[i], v, 1e-12));
-  assert.equal(core.luFactor([[1, 2], [2, 4]]), null);
+test('pentadiagonal Cholesky matches a dense solve and rejects an indefinite matrix', () => {
+  const n = 9, d = [], e = [], f = [];
+  for (let i = 0; i < n; i++) { d.push(6 + i); e.push(-1.5 + 0.1 * i); f.push(0.3); }
+  const A = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) =>
+    i === j ? d[i] : Math.abs(i - j) === 1 ? e[Math.min(i, j)] : Math.abs(i - j) === 2 ? f[Math.min(i, j)] : 0));
+  const x = Array.from({ length: n }, (_, i) => i - 3.5);
+  const b = A.map(r => r.reduce((s, v, j) => s + v * x[j], 0));
+  const got = core.pentaCholesky(d, e, f)(b);
+  x.forEach((v, i) => near(got[i], v, 1e-12));
+  assert.equal(core.pentaCholesky([1, 1], [2, 0], [0, 0]), null);
 });
 
 test('quoteMid drops zero bids, inverted and too-wide quotes', () => {

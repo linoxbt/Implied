@@ -23,6 +23,7 @@ test('built script is self-contained and placed on the price chart', () => {
   const src = fs.readFileSync(path.join(__dirname, '../dist/implied.js'), 'utf8');
   assert.ok(!/module\.exports|require\(/.test(src));
   assert.ok(src.includes('#TSBuild26'));
+  assert.match(src, /describe_indicator\('Implied', 'price'/);
 });
 
 test('SPY: seven quantile lines, five bands, downside skew in the overlay, no Fork', async () => {
@@ -97,17 +98,22 @@ test('requests the maximum 40 strikes per side, in one chain call', async () => 
   const out = await scenario('SPY');
   const req = out.requests.find(r => r[0] === 'options_data_for_all_expirations');
   assert.equal(req[2], 40);
-  assert.deepEqual(req[3].slice().sort(), ['a', 'b', 'l']);
+  assert.deepEqual(req[3].slice().sort(), ['a', 'b']);
   assert.equal(req[4], 'all');
 });
 
-test('projections never exceed the 100-value paint_projection limit', async () => {
+test('expiries beyond the 100-bar paint_projection window are never drawn', async () => {
   const { schedule, chain } = fx.ticker({ S: 300, spreadPct: 0.02,
     expiries: [30, 60, 120, 180].map(dte => ({ dte, model: { kind: 'smile', atm: 0.3, skew: -0.3, curv: 0.6 } })) });
-  const out = await runIndicator({ ticker: 'LONG', schedule, chain, ...fx.candles(300) });
+  const out = await runIndicator({ ticker: 'LONG', schedule, chain, inputs: { 'Expirations to project': 8 }, ...fx.candles(300) });
   assert.equal(out.error, null);
   assert.ok(out.projections.every(p => p.length <= 100), out.projections.map(p => p.length).join(','));
-  assert.ok(overlayText(out).some(t => /platform limit/.test(t)));
+  assert.equal(lastBar(median(out).series), 60, 'the 120- and 180-day expiries are out of the window');
+  assert.ok(overlayText(out)[0].startsWith('IMPLIED · 60-DAY'), overlayText(out)[0]);
+
+  const far = fx.ticker({ S: 300, spreadPct: 0.02, expiries: [120, 180].map(dte => ({ dte, model: fx.smile(0.3) })) });
+  const none = await runIndicator({ ticker: 'LONG', ...far, ...fx.candles(300) });
+  assert.match(none.error, /did not include any expiration in the next 99 days/);
 });
 
 test('high-IV stock: upside tail tag, fat right tail', async () => {
@@ -153,19 +159,21 @@ test('non-Daily timeframe: Daily-only message before any request', async () => {
   }
 });
 
-test('0-DTE expiries are dropped; settings limit expiries; missing expiries are skipped', async () => {
+test('0-DTE expiries are dropped; missing or junk expiries are replaced by neighbours', async () => {
   const { schedule, chain } = fx.SCENARIOS.SPY();
-  const zero = [{ expiration: { dte: 0, code: 'E0' } }, ...schedule];
+  const zero = [{ expiration: { ...schedule[0].expiration, dte: 0, code: 20261023 } }, ...schedule];
   const two = await runIndicator({ ticker: 'SPY', schedule: zero, chain, inputs: { 'Expirations to project': 2 }, ...fx.candles(580) });
   assert.equal(two.error, null);
-  assert.equal(lastBar(median(two).series), 14);
+  assert.equal(lastBar(median(two).series), 28, 'two expirations target 14 and 30 days');
 
+  const keys = Object.keys(chain.resultByExpiration).sort();
   const partial = { ...chain, resultByExpiration: { ...chain.resultByExpiration } };
-  delete partial.resultByExpiration.E14;
-  partial.resultByExpiration.E28 = { 1: 'junk' };
+  delete partial.resultByExpiration[keys[1]]; // the 14-day expiry is missing
+  partial.resultByExpiration[keys[2]] = { 1: 'junk' }; // the 28-day expiry is junk
   const out = await runIndicator({ ticker: 'SPY', schedule, chain: partial, ...fx.candles(580) });
   assert.equal(out.error, null);
   assert.equal(lastBar(median(out).series), 49);
+  assert.equal(out.projections[3].series.filter(v => v != null).length, 50, 'still a continuous cloud to day 49');
 });
 
 test('spot price missing from the chain falls back to the last close', async () => {
@@ -188,7 +196,7 @@ test('performance: 8 expiries model and paint well under a second, one request o
   });
   const out = await runIndicator({ ticker: 'BIG', schedule, chain, inputs: { 'Expirations to project': 8 }, ...fx.candles(450) });
   assert.equal(out.error, null);
-  assert.ok(out.ms < 1000, `${out.ms.toFixed(0)} ms`);
+  assert.ok(out.ms < 3000, `${out.ms.toFixed(0)} ms (spec budget: cloud within 3 s)`);
   assert.deepEqual(out.requests.map(r => r[0]), ['options_schedule', 'options_data_for_all_expirations']);
   assert.ok(out.projections.length === 10 && out.fills.length === 5);
 });

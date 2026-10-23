@@ -6,12 +6,13 @@
   "private": true,
   "scripts": {
     "build": "node tools/build.js",
-    "test": "node tools/build.js && node --test test/*.test.js",
-    "check": "node tools/build.js --check && node --test test/*.test.js",
+    "test": "node tools/build.js && node tools/test.js",
+    "check": "node tools/build.js --check && node tools/test.js",
     "preview": "node tools/build.js && node tools/preview.js",
-    "site": "node tools/build.js && node tools/site.js"
+    "site": "node tools/build.js && node tools/site.js",
+    "stress": "node tools/stress.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }

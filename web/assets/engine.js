@@ -1,28 +1,29 @@
-// Implied — browser engine.
-// 1. runScript: runs the real, unmodified implied.js against a stand-in for
-//    TrendSpider's runtime and records what it paints (as test/runtime.js does in Node).
-// 2. synth: builds option chains in TrendSpider's response shape, priced from a
-//    known distribution, so every page can show the script working on demand.
-// Needs core.js loaded first (black76Call and friends are globals).
-(function (global) {
+// Implied — engine shared by the website, the test suite and tools/replay.js.
+// 1. A stand-in for TrendSpider's script runtime: runs the real, unmodified
+//    implied.js and records what it paints, enforcing the documented rules
+//    (40 strikes per side, valid styles, fixed line names, 100-value
+//    projections, serializable overlays).
+// 2. Synthetic option chains in TrendSpider's response shape (real-format
+//    expiry codes, optional gaps and one-sided strikes), priced from a known
+//    distribution.
+// In the browser it reads core.js's functions from the page; in Node it
+// requires src/core.js.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../../src/core.js'), true);
+  else root.Implied = factory(root, false);
+})(typeof self !== 'undefined' ? self : this, function (core, isNode) {
   'use strict';
   var AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-  var scriptText = null;
+  var now = function () { return typeof performance !== 'undefined' ? performance.now() : Date.now(); };
 
-  function loadScript() {
-    if (scriptText) return Promise.resolve(scriptText);
-    return fetch('/implied.js').then(function (r) {
-      if (!r.ok) throw new Error('Could not load implied.js');
-      return r.text();
-    }).then(function (t) { scriptText = t; return t; });
-  }
+  // ---------- The runtime stand-in ----------
+  var STYLES = ['line', 'column', 'stacked_column', 'dotted', 'ladder', 'labels_above', 'labels_below', 'area', 'arearange', 'columnrange', 'candles', 'boxplot', 'bubble'];
+  var MAX_PROJECTION = 100;
 
   function IndicatorError(msg) { this.message = msg; }
 
-  var STYLES = ['line', 'column', 'stacked_column', 'dotted', 'ladder', 'labels_above', 'labels_below', 'area', 'arearange', 'columnrange', 'candles', 'boxplot', 'bubble'];
-
   // request.options_data_for_all_expirations(ticker, n, ...) returns n strikes
-  // on each side of the price (max 40) for every expiry; mirror that here.
+  // on each side of the price (max 40) for every expiry.
   function limitStrikes(chain, n, fallbackSpot) {
     if (!chain || !chain.resultByExpiration) return chain;
     var S = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice) || fallbackSpot;
@@ -37,10 +38,13 @@
     return Object.assign({}, chain, { resultByExpiration: out });
   }
 
-  async function runScript(opts) {
-    var code = await loadScript();
+  // Runs `code` (the text of implied.js) with the given chart and data.
+  // opts: { ticker, resolution, schedule, chain, close, time, inputs, rethrow }
+  // A failed assert() becomes out.error (the on-chart message). Any other
+  // exception is a crash: rethrown when opts.rethrow, else out.crash = true.
+  async function runCode(code, opts) {
     var close = opts.close, time = opts.time, inputs = opts.inputs || {};
-    var out = { name: null, placement: null, inputs: [], projections: [], fills: [], overlays: [], error: null, requests: [] };
+    var out = { name: null, placement: null, inputs: [], projections: [], fills: [], overlays: [], error: null, crash: false, requests: [] };
     var ids = new Map();
     function rule(cond, msg) { if (!cond) throw new Error('TrendSpider rule broken: ' + msg); }
     function declare(kind, label, def, o) { out.inputs.push({ kind: kind, label: label, def: def, opts: o }); return label in inputs ? inputs[label] : def; }
@@ -53,11 +57,12 @@
       },
       assert: function (cond, msg) { if (!cond) throw new IndicatorError(msg); },
       request: {
-        options_schedule: async function (t) { out.requests.push(['options_schedule', t]); return opts.schedule; },
+        options_schedule: async function (t) { out.requests.push(['options_schedule', t]); return typeof opts.schedule === 'function' ? opts.schedule() : opts.schedule; },
         options_data_for_all_expirations: async function () {
           var args = [].slice.call(arguments);
           out.requests.push(['options_data_for_all_expirations'].concat(args));
-          return limitStrikes(opts.chain, args[1], close[close.length - 1]);
+          var c = typeof opts.chain === 'function' ? opts.chain.apply(null, args) : opts.chain;
+          return limitStrikes(c, args[1], close[close.length - 1]);
         },
       },
       close: close, time: time,
@@ -65,23 +70,46 @@
       paint_projection: function (series, o) {
         o = o || {};
         rule(Array.isArray(series), 'paint_projection needs an array');
-        rule(!o.style || STYLES.indexOf(o.style) >= 0, 'unknown style ' + o.style);
+        rule(!o.style || STYLES.indexOf(o.style) >= 0, 'unknown style "' + o.style + '"');
         var id = { i: out.projections.length };
-        out.projections.push(Object.assign({ series: series.slice(0, 100), length: series.length }, o));
+        out.projections.push(Object.assign({ series: series.slice(0, MAX_PROJECTION), length: series.length }, o));
         ids.set(id, out.projections.length - 1);
         return id;
       },
-      fill: function (a, b, color, opacity, title) { out.fills.push({ a: ids.get(a), b: ids.get(b), color: color, opacity: opacity, title: title }); },
-      paint_overlay: function (name, params, definition) { out.overlays.push({ name: name, params: params, definition: JSON.parse(JSON.stringify(definition)) }); },
+      fill: function (a, b, color, opacity, title) {
+        rule(ids.has(a) && ids.has(b), 'fill() needs two painted lines');
+        out.fills.push({ a: ids.get(a), b: ids.get(b), color: color, opacity: opacity, title: title });
+      },
+      paint_overlay: function (name, params, definition) {
+        rule(typeof name === 'string' && definition && Array.isArray(definition.rows), 'paint_overlay(name, params, { rows })');
+        out.overlays.push({ name: name, params: params, definition: JSON.parse(JSON.stringify(definition)) });
+      },
     };
     var names = Object.keys(g);
     var fn = new AsyncFunction(names.join(','), '"use strict";\n' + code);
-    var t0 = performance.now();
-    try { await fn.apply(null, names.map(function (n) { return g[n]; })); }
-    catch (e) { if (e instanceof IndicatorError) out.error = e.message; else { out.error = 'Script error: ' + (e && e.message || e); out.crash = true; } }
-    out.ms = performance.now() - t0;
+    var t0 = now();
+    try {
+      await fn.apply(null, names.map(function (n) { return g[n]; }));
+    } catch (e) {
+      if (e instanceof IndicatorError) out.error = e.message;
+      else if (opts.rethrow) throw e;
+      else { out.error = 'Script error: ' + (e && e.message || e); out.crash = true; }
+    }
+    out.ms = now() - t0;
     return out;
   }
+
+  // Browser: fetch the deployed implied.js once (versioned by the page) and run it.
+  var scriptText = null;
+  function loadScript() {
+    if (scriptText) return Promise.resolve(scriptText);
+    var v = typeof document !== 'undefined' && document.documentElement.getAttribute('data-v');
+    return fetch('/implied.js' + (v ? '?v=' + v : '')).then(function (r) {
+      if (!r.ok) throw new Error('Could not load implied.js (' + r.status + ')');
+      return r.text();
+    }).then(function (t) { scriptText = t; return t; });
+  }
+  async function runScript(opts) { return runCode(await loadScript(), opts); }
 
   // ---------- Synthetic chains ----------
   function rng(seed) {
@@ -97,67 +125,82 @@
 
   // model: { kind:'smile', atm, skew, curv } or { kind:'mix', parts:[{w, F, sig}] }
   function trueCall(model, F, K, T, D) {
-    if (model.kind === 'mix') {
+    if (model.kind === 'mix') { // part forwards rescaled so the mixture's mean is F (no arbitrage)
       var mean = model.parts.reduce(function (a, p) { return a + p.w * p.F; }, 0);
-      return model.parts.reduce(function (a, p) { return a + p.w * black76Call(p.F * F / mean, K, T, p.sig, D); }, 0);
+      return model.parts.reduce(function (a, p) { return a + p.w * core.black76Call(p.F * F / mean, K, T, p.sig, D); }, 0);
     }
     var k = Math.log(K / F);
     var sig = Math.max(0.03, model.atm + (model.skew || 0) * k + (model.curv || 0) * k * k);
-    return black76Call(F, K, T, sig, D);
+    return core.black76Call(F, K, T, sig, D);
   }
 
   function strikeStep(S) { return S < 25 ? 0.5 : S < 200 ? 1 : S < 500 ? 2.5 : 5; }
 
+  // One expiry's quotes: { [strike]: { C: {b, a}, P: {b, a} } }.
+  // o: { S, r, T, q, model, spreadPct, noise, seed, range, step, gaps, oneSided }
+  //    gaps: share of strikes missing; oneSided: share of strikes with only a call or a put.
   function expiryQuotes(o) {
     var rand = rng(o.seed || 1), r = o.r, T = o.T, S = o.S;
     var D = Math.exp(-r * T), F = S * Math.exp((r - (o.q || 0)) * T);
-    var step = strikeStep(S), out = {};
-    var range = o.range || 0.4;
+    var step = o.step || strikeStep(S), out = {};
+    var range = o.range || 0.35;
     var lo = Math.ceil(S * (1 - range) / step) * step, hi = Math.floor(S * (1 + range) / step) * step;
     var spread = o.spreadPct, noise = o.noise == null ? 0.5 : o.noise, minHalf = 0.01;
     function quote(theo) {
       var half = Math.max(minHalf, spread * theo);
       var m = Math.max(0, theo + (rand() - 0.5) * noise * half * 2);
       var b = round2(Math.max(0, m - half)), a = round2(Math.max(b + 0.01, m + half));
-      return { b: b, a: a, l: round2(m) };
+      return { b: b, a: a };
     }
     for (var K = lo; K <= hi + 1e-9; K += step) {
       var c = trueCall(o.model, F, K, T, D), p = c - D * (F - K);
-      out[(Math.round(K * 100) / 100).toFixed(2)] = { C: quote(c), P: quote(Math.max(0, p)) };
+      var row = { C: quote(c), P: quote(Math.max(0, p)) };
+      if (o.gaps && rand() < o.gaps) continue;
+      if (o.oneSided && rand() < o.oneSided) delete row[rand() < 0.5 ? 'C' : 'P'];
+      out[(Math.round(K * 100) / 100).toFixed(2)] = row;
     }
     return { byStrike: out, F: F, D: D };
   }
 
-  var EXPIRY_LADDER = [7, 14, 21, 28, 49, 77, 105, 140];
-
-  // params: { S, vol, skew, curv, move, eDay, spreadPct, seed, r, expiries }
-  function synth(params) {
-    var S = params.S, r = params.r == null ? 0.04 : params.r;
-    var ladder = (params.ladder || EXPIRY_LADDER).slice(0, params.count || 8);
-    var schedule = [], res = {}, models = {};
-    ladder.forEach(function (dte, i) {
-      var T = dte / 365, F = S * Math.exp(r * T), model;
-      if (params.move > 0 && dte >= params.eDay) {
-        var j = params.move / 100, w = params.weight == null ? 0.5 : params.weight;
-        model = { kind: 'mix', parts: [{ w: w, F: F * Math.exp(-j), sig: params.vol / 100 }, { w: 1 - w, F: F * Math.exp(j), sig: params.vol / 100 }] };
-      } else {
-        model = { kind: 'smile', atm: params.vol / 100, skew: params.skew, curv: params.curv };
-      }
-      var code = 'E' + dte;
-      schedule.push({ expiration: { dte: dte, code: code } });
-      res[code] = expiryQuotes({ S: S, r: r, T: T, model: model, spreadPct: params.spreadPct / 100, noise: params.noise, seed: (params.seed || 7) + i * 101 }).byStrike;
-      models[code] = model;
-    });
-    return { schedule: schedule, chain: { underlyingSymbolQuote: { lastPrice: S }, resultByExpiration: res }, models: models };
+  // Expiry identity as TrendSpider gives it: the schedule's code is YYYYMMDD
+  // (a number) with year/month/day/timestamp; the chain's key is YYMMDD.
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function expiryOf(asOfMs, dte) {
+    var t = new Date(asOfMs + dte * 86400000), y = t.getUTCFullYear(), m = t.getUTCMonth() + 1, d = t.getUTCDate();
+    var pad = function (v) { return String(v).padStart(2, '0'); };
+    return {
+      expiration: { day: d, month: MONTHS[m - 1], year: y, code: Number(y + pad(m) + pad(d)), dte: dte, timestamp: Date.UTC(y, m - 1, d, 5) / 1000 },
+      key: pad(y % 100) + pad(m) + pad(d),
+    };
   }
 
-  function candles(S, n, seed, drift) {
+  // A ticker: { schedule, chain } with real-format expiry codes.
+  // p: { S, r, q, asOf (ms, UTC midnight of the last candle), expiries: [{ dte, model, spreadPct?, noise? }],
+  //      seed, spreadPct, noise, step, gaps, oneSided, range, spot (quoted lastPrice; defaults to S) }
+  function ticker(p) {
+    var r = p.r == null ? 0.04 : p.r, asOf = p.asOf || todayUtc();
+    var schedule = [], res = {};
+    p.expiries.forEach(function (e, i) {
+      var id = expiryOf(asOf, e.dte);
+      schedule.push({ expiration: id.expiration });
+      res[id.key] = expiryQuotes({
+        S: p.S, r: r, q: p.q, T: e.dte / 365, model: e.model, seed: (p.seed || 7) + i * 101,
+        spreadPct: e.spreadPct != null ? e.spreadPct : p.spreadPct, noise: e.noise != null ? e.noise : p.noise,
+        step: p.step, gaps: p.gaps, oneSided: p.oneSided, range: p.range,
+      }).byStrike;
+    });
+    return { schedule: schedule, chain: { underlyingSymbolQuote: { lastPrice: p.spot || p.S }, resultByExpiration: res } };
+  }
+
+  function todayUtc() { var d = new Date(); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); }
+
+  // Daily candles ending at asOf (weekdays only), last close = S.
+  function candles(S, n, seed, asOf, drift) {
     n = n || 260;
     var rand = rng(seed || 3), close = [], time = [];
-    var now = new Date(); now.setUTCHours(20, 0, 0, 0);
-    var t = now.getTime() / 1000;
+    var end = (asOf || todayUtc()) / 1000;
     for (var d = 0; time.length < n; d++) {
-      var ts = t - d * 86400, dow = new Date(ts * 1000).getUTCDay();
+      var ts = end - d * 86400, dow = new Date(ts * 1000).getUTCDay();
       if (dow !== 0 && dow !== 6) time.unshift(ts);
     }
     var p = 100;
@@ -166,6 +209,8 @@
     return { close: close.map(function (c) { return c * k; }), time: time };
   }
 
+  // Website markets: an expiry every week for two months, then monthlies.
+  var LADDER = [7, 14, 21, 28, 35, 42, 49, 56, 63, 77, 91];
   var PRESETS = {
     index: { label: 'Index', S: 580, vol: 16, skew: -0.35, curv: 0.6, move: 0, eDay: 9, spreadPct: 2, count: 4 },
     earnings: { label: 'Earnings', S: 190, vol: 22, skew: -0.2, curv: 0.8, move: 8, eDay: 9, spreadPct: 3, count: 4 },
@@ -173,15 +218,33 @@
     bell: { label: 'Bell curve', S: 100, vol: 25, skew: 0, curv: 0, move: 0, eDay: 9, spreadPct: 2, count: 4 },
   };
 
-  // Model one expiry step by step (for the explorer and density views).
-  function explain(byStrike, S, T, r, maxSpread) {
-    var clean = cleanExpiry(byStrike, S, T, r, maxSpread);
-    var smile = clean.pts.length >= 4 ? fitSmile(clean.pts, T) : null;
-    var d = smile ? density(clean.F, T, clean.D, smile) : null;
-    var shape = d ? describeShape(d, clean.F) : null;
-    return { F: clean.F, D: clean.D, pts: clean.pts, smile: smile, d: d, shape: shape, total: Object.keys(byStrike || {}).length };
+  // A website market from slider values: { S, vol (%), skew, curv, move (%), eDay, spreadPct (%), seed, weight }
+  function synth(params) {
+    var S = params.S, r = 0.04;
+    var expiries = LADDER.map(function (dte) {
+      var F = S * Math.exp(r * dte / 365), model;
+      if (params.move > 0 && dte >= params.eDay) {
+        var j = params.move / 100, w = params.weight == null ? 0.5 : params.weight;
+        model = { kind: 'mix', parts: [{ w: w, F: F * Math.exp(-j), sig: params.vol / 100 }, { w: 1 - w, F: F * Math.exp(j), sig: params.vol / 100 }] };
+      } else {
+        model = { kind: 'smile', atm: params.vol / 100, skew: params.skew, curv: params.curv };
+      }
+      return { dte: dte, model: model };
+    });
+    return ticker({ S: S, r: r, expiries: expiries, spreadPct: params.spreadPct / 100, seed: params.seed || 7, asOf: params.asOf });
   }
 
+  // One expiry, step by step, as the indicator models it (for the explorer
+  // and the Fork page): the fit, the density, the shape and the Fork verdict.
+  function explain(byStrike, S, T, r, maxSpread, minStrikes) {
+    var f = core.fitExpiry(byStrike, S, T, r, maxSpread, minStrikes == null ? 8 : minStrikes);
+    var strikes = f.pts.map(function (p) { return p.K; });
+    var shape = f.ok ? core.describeShape(f.d, f.F, strikes) : null;
+    var diag = f.ok ? core.forkDiagnostics(f.d, f.F, strikes) : null;
+    return { F: f.F, D: f.D, pts: f.pts, smile: f.smile, d: f.ok ? f.d : null, shape: shape, diag: diag, reason: f.reason, total: Object.keys(byStrike || {}).length };
+  }
+
+  // The density the quotes were priced from (dashed line on the Fork page).
   function trueDensity(model, F, T, r, lo, hi) {
     var D = Math.exp(-r * T), N = 400, h = (hi - lo) / (N - 1), Ks = [], pdf = [];
     for (var i = 0; i < N; i++) {
@@ -193,5 +256,9 @@
     return { Ks: Ks, pdf: pdf.map(function (v) { return v / (a || 1); }) };
   }
 
-  global.Implied = { runScript: runScript, limitStrikes: limitStrikes, loadScript: loadScript, rng: rng, trueCall: trueCall, expiryQuotes: expiryQuotes, synth: synth, candles: candles, PRESETS: PRESETS, EXPIRY_LADDER: EXPIRY_LADDER, explain: explain, trueDensity: trueDensity };
-})(window);
+  return {
+    runCode: runCode, runScript: runScript, limitStrikes: limitStrikes, STYLES: STYLES, MAX_PROJECTION: MAX_PROJECTION,
+    rng: rng, trueCall: trueCall, expiryQuotes: expiryQuotes, expiryOf: expiryOf, ticker: ticker, candles: candles,
+    synth: synth, PRESETS: PRESETS, explain: explain, trueDensity: trueDensity,
+  };
+});

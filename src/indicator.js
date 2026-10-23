@@ -35,44 +35,93 @@ assert(String(current.resolution).toUpperCase() === 'D', 'Implied runs on the Da
 const NO_DATA = 'No options data for ' + current.ticker + '. Implied needs a ticker with listed options and an OPRA subscription.';
 const [schedule, chain] = await Promise.all([
   request.options_schedule(current.ticker),
-  request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a', 'l'], 'all'),
+  request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a'], 'all'),
 ]);
 assert(schedule && !schedule.error && Array.isArray(schedule) && schedule.length > 0,
   NO_DATA + (schedule && schedule.error ? ' (' + schedule.error + ')' : ''));
 assert(chain && !chain.error && chain.resultByExpiration,
   NO_DATA + (chain && chain.error ? ' (' + chain.error + ')' : ''));
 
-const expiries = schedule
-  .filter(e => e && e.expiration && Number(e.expiration.dte) >= 1)
-  .sort((a, b) => a.expiration.dte - b.expiration.dte)
-  .slice(0, EXPIRIES);
-assert(expiries.length > 0, NO_DATA);
-
 const lastClose = close[close.length - 1];
 const quotedSpot = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
 const SPOT = quotedSpot > 0 ? quotedSpot : lastClose;
-assert(SPOT > 0, NO_DATA);
+assert(SPOT > 0 && lastClose > 0, NO_DATA);
+// The cloud starts at the last close; every price shown (bands, Fork ticks,
+// summary panel) is on that same footing, scaled by lastClose / SPOT.
+const SCALE = lastClose / SPOT;
+const lastTimeRaw = Number(time[time.length - 1]);
+const lastTime = lastTimeRaw > 1e12 ? lastTimeRaw / 1000 : lastTimeRaw; // seconds
 
-// ---------- Model, per expiry ----------
-const expiryShapes = [];
-for (const e of expiries) {
-  const byStrike = chain.resultByExpiration[e.expiration.code];
-  if (!byStrike) continue;
-  const dte = Number(e.expiration.dte);
-  let shape = null;
-  try {
-    shape = modelExpiry(byStrike, SPOT, dte / 365, RATE, MAX_SPREAD, MIN_STRIKES);
-  } catch (err) {
-    shape = null; // a bad expiry is skipped; the others still draw
-  }
-  if (shape && shape.q.every(Number.isFinite)) expiryShapes.push(Object.assign({ dte, byStrike }, shape));
+// ---------- Match expirations to the chain ----------
+// The schedule's codes (YYYYMMDD in TrendSpider's docs) and the chain's keys
+// (YYMMDD) are compared on a normalized YYMMDD key; the expiration's
+// year/month/day is a second way to build that key.
+const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+const chainByKey = {};
+for (const key of Object.keys(chain.resultByExpiration)) chainByKey[expiryKey(key)] = chain.resultByExpiration[key];
+function chainFor(x) {
+  const byCode = chainByKey[expiryKey(x.code)];
+  if (byCode) return byCode;
+  const m = MONTHS[String(x.month || '').slice(0, 3).toLowerCase()] || Number(x.month);
+  if (!(x.year > 0 && m > 0 && x.day > 0)) return null;
+  const pad = v => String(v).padStart(2, '0');
+  return chainByKey[pad(x.year % 100) + pad(m) + pad(x.day)] || null;
 }
+// Calendar days from the last candle to an expiry: from its timestamp when
+// given, so weekends and holidays between the last bar and today don't shift
+// the cloud; otherwise its days-to-expiry.
+function daysOut(x) {
+  const ts = Number(x.timestamp);
+  if (ts > 0 && lastTime > 0) {
+    const d = Math.round((ts - lastTime) / 86400);
+    if (d >= 1) return d;
+  }
+  return Number(x.dte);
+}
+
+const horizon = projectionTimeline(PROJECTION_DAYS, lastTime, 400);
+const candidates = schedule
+  .filter(e => e && e.expiration && Number(e.expiration.dte) >= 1)
+  .map(e => ({ x: e.expiration, byStrike: chainFor(e.expiration), day: daysOut(e.expiration) }))
+  .filter(c => c.byStrike && c.day >= 1 && horizon.barOfDay[c.day] < MAX_PROJECTION)
+  .sort((a, b) => a.day - b.day);
+assert(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + ' days.');
+
+// ---------- Model: pick expiries by horizon ----------
+// For each target horizon, model the nearest expiry; if it is too thin, try
+// its neighbours. A ticker with an expiry every weekday still gets a cloud
+// that reaches weeks out.
+const modelled = new Map();
+function shapeOf(i) {
+  if (!modelled.has(i)) {
+    const c = candidates[i], dte = Number(c.x.dte);
+    let shape = null;
+    try {
+      shape = modelExpiry(c.byStrike, SPOT, dte / 365, RATE, MAX_SPREAD, MIN_STRIKES);
+    } catch (err) {
+      shape = null; // a bad expiry is skipped; another one takes its place
+    }
+    modelled.set(i, shape && shape.q.every(Number.isFinite) ? Object.assign({ dte, day: c.day }, shape) : null);
+  }
+  return modelled.get(i);
+}
+const chosen = new Set();
+for (const order of expiryPlan(candidates.map(c => c.day), EXPIRIES)) {
+  for (const i of order.slice(0, 4)) {
+    if (chosen.has(i)) continue;
+    if (shapeOf(i)) { chosen.add(i); break; }
+  }
+}
+const expiryShapes = [...chosen].map(i => modelled.get(i)).sort((a, b) => a.day - b.day);
 assert(expiryShapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
 
 // ---------- Project ----------
-const lastDte = expiryShapes[expiryShapes.length - 1].dte;
-const projTimeline = projectionTimeline(PROJECTION_DAYS, time[time.length - 1], lastDte);
-const bandValues = projectQuantiles(expiryShapes, SPOT, lastClose, projTimeline.times)
+// The model's clock (T) runs from now; the chart's runs from the last candle,
+// so each expiry is placed at its own day offset.
+const lastDay = expiryShapes[expiryShapes.length - 1].day;
+const projTimeline = projectionTimeline(PROJECTION_DAYS, lastTime, lastDay);
+const placed = expiryShapes.map(s => ({ F: s.F, q: s.q, T: s.day / 365 }));
+const bandValues = projectQuantiles(placed, SPOT, lastClose, projTimeline.times)
   .map(vals => vals.slice(0, MAX_PROJECTION));
 
 // ---------- Paint: bands ----------
@@ -100,11 +149,11 @@ const markLength = Math.min(MAX_PROJECTION, projTimeline.times.length);
 const forkMarks = { high: Array(markLength).fill(null), low: Array(markLength).fill(null), valley: Array(markLength).fill(null) };
 if (SHOW_FORK) {
   for (const s of forkShapes) {
-    const bar = projTimeline.barOfDte[s.dte];
+    const bar = projTimeline.barOfDay[s.day];
     for (let i = Math.max(1, bar - 2); i <= bar && i < markLength; i++) {
-      forkMarks.high[i] = s.fork.high;
-      forkMarks.low[i] = s.fork.low;
-      forkMarks.valley[i] = s.fork.valley;
+      forkMarks.high[i] = s.fork.high * SCALE;
+      forkMarks.low[i] = s.fork.low * SCALE;
+      forkMarks.valley[i] = s.fork.valley * SCALE;
     }
   }
 }
@@ -117,9 +166,9 @@ paint_projection(forkMarks.valley, { name: 'Fork least likely', color: COLORS.va
 // a small chart of the distribution at the expiry that matters most (the first
 // Fork if there is one, otherwise the farthest expiry).
 const focus = (SHOW_FORK && forkShapes[0]) || expiryShapes[expiryShapes.length - 1];
-paint_overlay('Implied summary', { position: 'top_left' }, summaryOverlay(focus, expiryShapes, lastDte > MAX_PROJECTION - 1));
+paint_overlay('Implied summary', { position: 'top_left' }, summaryOverlay(focus, expiryShapes));
 
-function summaryOverlay(s, all, clipped) {
+function summaryOverlay(s, all) {
   const text = (t, extra) => Object.assign({ text: t, color: 'var(--text-color)', fontSize: '12px', padding: '2px 10px', textAlign: 'left' }, extra || {});
   const d = densityFor(s);
   const tag = skewTag(all[all.length - 1].skew);
@@ -133,20 +182,20 @@ function summaryOverlay(s, all, clipped) {
       options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 5, font: { size: 10 } }, grid: { display: false } }, y: { display: false } } },
     } }] });
   }
-  rows.push({ cells: [text('Median ' + formatPrice(s.q[3]) + ' · 95% range ' + formatPrice(s.q[0]) + ' – ' + formatPrice(s.q[6]))] });
+  rows.push({ cells: [text('Median ' + formatPrice(s.q[3] * SCALE) + ' · 95% range ' + formatPrice(s.q[0] * SCALE) + ' – ' + formatPrice(s.q[6] * SCALE))] });
   rows.push({ cells: [text(tag ? tag + ' (to ' + all[all.length - 1].dte + ' days)' : 'Close to symmetric')] });
-  if (SHOW_FORK && s.fork) rows.push({ cells: [text(forkLabel(s.fork), { color: COLORS.fork, fontWeight: '600' })] });
-  if (clipped) rows.push({ cells: [text('Cloud drawn to ' + (MAX_PROJECTION - 1) + ' days (platform limit)', { fontSize: '11px', opacity: 0.7 })] });
+  if (SHOW_FORK && s.fork) {
+    const f = { low: s.fork.low * SCALE, high: s.fork.high * SCALE, valley: s.fork.valley * SCALE };
+    rows.push({ cells: [text(forkLabel(f), { color: COLORS.fork, fontWeight: '600' })] });
+  }
   rows.push({ cells: [text('Risk-neutral: the price of each outcome, not a forecast.', { fontSize: '10px', opacity: 0.6, paddingBottom: '8px' })] });
   return { background: 'var(--background-color)', border: 'solid 1px var(--border-color)', borderRadius: '8px', rows };
 }
 
-// Density at one expiry, resampled to 40 points between its 1st and 99th
-// percentile for the overlay chart.
+// The expiry's density (already computed by modelExpiry), resampled to 40
+// points between its 1st and 99th percentile for the overlay chart.
 function densityFor(s) {
-  const clean = cleanExpiry(s.byStrike, SPOT, s.T, RATE, MAX_SPREAD);
-  const smile = fitSmile(clean.pts, s.T);
-  const d = smile && density(clean.F, s.T, clean.D, smile);
+  const d = s.d;
   if (!d) return null;
   const lo = quantile(d, 0.01), hi = quantile(d, 0.99), labels = [], values = [];
   for (let i = 0; i < 40; i++) {
@@ -154,7 +203,8 @@ function densityFor(s) {
     let j = 1;
     while (j < d.Ks.length - 1 && d.Ks[j] < K) j++;
     const t = (K - d.Ks[j - 1]) / (d.Ks[j] - d.Ks[j - 1]);
-    labels.push(K < 100 ? K.toFixed(1) : Math.round(K).toString());
+    const shown = K * SCALE;
+    labels.push(shown < 100 ? shown.toFixed(1) : Math.round(shown).toString());
     values.push(+(d.pdf[j - 1] + t * (d.pdf[j] - d.pdf[j - 1])).toPrecision(4));
   }
   return { labels, values };

@@ -6,26 +6,37 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-const core = fs.readFileSync(path.join(root, 'src/core.js'), 'utf8')
-  .replace(/\/\/ @node-only-start[\s\S]*?\/\/ @node-only-end\n?/, '');
-const indicator = fs.readFileSync(path.join(root, 'src/indicator.js'), 'utf8');
 
-const header = `// Implied v${pkg.version} — the options market's implied price distribution, painted into the future.
+// src/core.js without the block that exports it to Node (also used by tools/site.js).
+function coreForBrowser() {
+  return fs.readFileSync(path.join(root, 'src/core.js'), 'utf8')
+    .replace(/\/\/ @node-only-start[\s\S]*?\/\/ @node-only-end\n?/, '');
+}
+
+function buildScript() {
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const indicator = fs.readFileSync(path.join(root, 'src/indicator.js'), 'utf8');
+  const header = `// Implied v${pkg.version} — the options market's implied price distribution, painted into the future.
 // Open source (Apache-2.0): https://github.com/linoxbt/Implied
 // Built file: edit src/core.js and src/indicator.js, then run \`npm run build\`.
 // #TSBuild26
 `;
-const out = header + '\n' + core.trimEnd() + '\n\n' + indicator;
-const target = path.join(root, 'dist/implied.js');
+  const out = header + '\n' + coreForBrowser().trimEnd() + '\n\n' + indicator;
+  if (/module\.exports|require\(/.test(out)) throw new Error('Node-only code leaked into the TrendSpider build');
+  return out;
+}
 
-if (/module\.exports|require\(/.test(out)) throw new Error('Node-only code leaked into the TrendSpider build');
-if (process.argv.includes('--check')) {
-  const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
-  if (current !== out) { console.error('dist/implied.js is stale: run `npm run build` and commit it.'); process.exit(1); }
-  console.log('dist/implied.js is up to date');
-} else {
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, out);
-  console.log('wrote dist/implied.js (' + out.split('\n').length + ' lines)');
+module.exports = { coreForBrowser, buildScript };
+
+if (require.main === module) {
+  const out = buildScript(), target = path.join(root, 'dist/implied.js');
+  if (process.argv.includes('--check')) {
+    const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
+    if (current !== out) { console.error('dist/implied.js is stale: run `npm run build` and commit it.'); process.exit(1); }
+    console.log('dist/implied.js is up to date');
+  } else {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, out);
+    console.log('wrote dist/implied.js (' + out.split('\n').length + ' lines)');
+  }
 }

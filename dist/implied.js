@@ -19,10 +19,29 @@ function normPdf(x) {
   return INV_SQRT_2PI * Math.exp(-x * x / 2);
 }
 
-function normCdf(x) { // Abramowitz-Stegun 26.2.17, |error| < 7.5e-8
-  const t = 1 / (1 + 0.2316419 * Math.abs(x));
-  const p = normPdf(x) * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
-  return x > 0 ? 1 - p : p;
+// Cumulative normal to double precision (Hart 1968, as given by West 2005).
+// A cheaper approximation leaves a kink at the money that the density, a
+// second derivative of prices, turns into a small false peak.
+function normCdf(x) {
+  const z = Math.abs(x);
+  let c = 0;
+  if (z <= 37) {
+    const e = Math.exp(-z * z / 2);
+    if (z < 7.07106781186547) {
+      let n = 3.52624965998911e-02 * z + 0.700383064443688;
+      n = n * z + 6.37396220353165; n = n * z + 33.912866078383; n = n * z + 112.079291497871;
+      n = n * z + 221.213596169931; n = n * z + 220.206867912376;
+      let d = 8.83883476483184e-02 * z + 1.75566716318264;
+      d = d * z + 16.064177579207; d = d * z + 86.7807322029461; d = d * z + 296.564248779674;
+      d = d * z + 637.333633378831; d = d * z + 793.826512519948; d = d * z + 440.413735824752;
+      c = e * n / d;
+    } else {
+      let f = z + 0.65;
+      f = z + 4 / f; f = z + 3 / f; f = z + 2 / f; f = z + 1 / f;
+      c = e / f / 2.506628274631;
+    }
+  }
+  return x <= 0 ? c : 1 - c;
 }
 
 // Undiscounted-forward call price, discounted by D = e^(-rT).
@@ -55,27 +74,29 @@ function impliedVol(price, F, K, T, D) {
 
 // ---------- Small linear-algebra helpers ----------
 
-// LU factorization with partial pivoting; returns a solver b -> x, or null if singular.
-function luFactor(A) {
-  const n = A.length, M = A.map(row => row.slice()), perm = Array.from({ length: n }, (_, i) => i);
-  for (let c = 0; c < n; c++) {
-    let piv = c;
-    for (let q = c + 1; q < n; q++) if (Math.abs(M[q][c]) > Math.abs(M[piv][c])) piv = q;
-    if (Math.abs(M[piv][c]) < 1e-300) return null;
-    [M[c], M[piv]] = [M[piv], M[c]]; [perm[c], perm[piv]] = [perm[piv], perm[c]];
-    for (let q = c + 1; q < n; q++) {
-      const f = M[q][c] /= M[c][c];
-      if (f !== 0) for (let k = c + 1; k < n; k++) M[q][k] -= f * M[c][k];
-    }
+// Cholesky factorization of a symmetric positive-definite pentadiagonal
+// matrix given by its diagonals: d[i] = A[i][i], e[i] = A[i][i+1],
+// f[i] = A[i][i+2]. Returns a solver (b, out) -> out, or null if the matrix is
+// not positive definite. O(n) per factorization and per solve, no allocation
+// per solve when `out` is passed.
+function pentaCholesky(d, e, f) {
+  const n = d.length, l0 = new Float64Array(n), l1 = new Float64Array(n), l2 = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const s = d[i] - (i >= 1 ? l1[i - 1] * l1[i - 1] : 0) - (i >= 2 ? l2[i - 2] * l2[i - 2] : 0);
+    if (!(s > 0)) return null;
+    l0[i] = Math.sqrt(s);
+    l1[i] = i + 1 < n ? (e[i] - (i >= 1 ? l2[i - 1] * l1[i - 1] : 0)) / l0[i] : 0;
+    l2[i] = i + 2 < n ? f[i] / l0[i] : 0;
   }
-  return b => {
-    const x = perm.map(i => b[i]);
-    for (let i = 0; i < n; i++) for (let k = 0; k < i; k++) x[i] -= M[i][k] * x[k];
-    for (let i = n - 1; i >= 0; i--) {
-      for (let k = i + 1; k < n; k++) x[i] -= M[i][k] * x[k];
-      x[i] /= M[i][i];
+  const y = new Float64Array(n);
+  return (b, out = new Float64Array(n)) => {
+    for (let i = 0; i < n; i++) {
+      y[i] = (b[i] - (i >= 1 ? l1[i - 1] * y[i - 1] : 0) - (i >= 2 ? l2[i - 2] * y[i - 2] : 0)) / l0[i];
     }
-    return x;
+    for (let i = n - 1; i >= 0; i--) {
+      out[i] = (y[i] - (i + 1 < n ? l1[i] * out[i + 1] : 0) - (i + 2 < n ? l2[i] * out[i + 2] : 0)) / l0[i];
+    }
+    return out;
   };
 }
 
@@ -122,8 +143,17 @@ function median(xs) {
   return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
 }
 
-// byStrike: { [strike]: { C: {b, a, l}, P: {b, a, l} } } for one expiry.
-// Returns { F, D, pts } where pts are OTM strikes with solved IV, sorted by strike.
+// A wing ends at the second rejected quote in a row (zero bid, inverted,
+// too wide, or no time value): isolated far strikes beyond such a gap are
+// stale prints that would bend the smile with nothing in between.
+const WING_MAX_REJECTS = 2;
+// If parity and the quoted spot disagree by more than this, the chain or the
+// spot is stale and the expiry is skipped rather than modelled on bad data.
+const MAX_FORWARD_GAP = 0.25;
+
+// byStrike: { [strike]: { C: {b, a}, P: {b, a} } } for one expiry.
+// Returns { F, D, pts } where pts are OTM strikes with solved IV, sorted by
+// strike. F is NaN (and pts empty) when no usable forward can be found.
 function cleanExpiry(byStrike, S, T, r, maxSpread) {
   const D = Math.exp(-r * T);
   const rows = [];
@@ -135,26 +165,39 @@ function cleanExpiry(byStrike, S, T, r, maxSpread) {
   rows.sort((x, y) => x.K - y.K);
 
   // Forward from put-call parity at the strikes nearest spot: F = K + (C - P) / D.
+  // Parity is trusted over the quoted spot, which can be stale after hours.
   const near = rows.filter(x => x.c && x.p)
     .sort((x, y) => Math.abs(x.K - S) - Math.abs(y.K - S)).slice(0, 5);
   let F = near.length ? median(near.map(x => x.K + (x.c.mid - x.p.mid) / D)) : S / D;
-  if (!(F > 0) || Math.abs(F / S - 1) > 0.25) F = S / D;
+  if (!(F > 0) || !Number.isFinite(F) || (S > 0 && Math.abs(F / S - 1) > MAX_FORWARD_GAP)) return { F: NaN, D, pts: [] };
 
-  const pts = [];
-  for (const x of rows) {
+  const point = x => {
     // Out-of-the-money side only; puts converted to call prices with parity.
     const q = x.K >= F ? x.c : x.p;
-    if (!q) continue;
+    if (!q) return null;
     const call = x.K >= F ? q.mid : q.mid + D * (F - x.K);
     const iv = impliedVol(call, F, x.K, T, D);
-    if (iv == null) continue;
+    if (iv == null) return null;
     const vega = vega76(F, x.K, T, iv, D);
-    if (!(vega > 1e-8 * F)) continue;
+    if (!(vega > 1e-8 * F)) return null;
     // One-sigma noise of total variance w = iv^2 T implied by half the bid-ask spread.
     const sdw = 2 * iv * T * Math.max(q.half, 0.005) / vega;
-    pts.push({ K: x.K, k: Math.log(x.K / F), iv, w: iv * iv * T, sdw });
-  }
-  return { F, D, pts };
+    return { K: x.K, k: Math.log(x.K / F), iv, w: iv * iv * T, sdw };
+  };
+  // Walk outward from the forward on each side; stop a wing at the first run
+  // of WING_MAX_REJECTS rejected quotes.
+  const walk = side => {
+    const out = [];
+    let rejects = 0;
+    for (const x of side) {
+      const p = point(x);
+      if (p) { out.push(p); rejects = 0; } else if (++rejects >= WING_MAX_REJECTS) break;
+    }
+    return out;
+  };
+  const below = walk(rows.filter(x => x.K < F).reverse()).reverse();
+  const above = walk(rows.filter(x => x.K >= F));
+  return { F, D, pts: below.concat(above) };
 }
 
 // ---------- Model: smoothing-spline smile w(k) ----------
@@ -163,17 +206,16 @@ function cleanExpiry(byStrike, S, T, r, maxSpread) {
 // second-difference penalty (Whittaker smoother), each quote weighted by the
 // variance noise its bid-ask spread implies. The penalty weight is chosen per
 // chain by generalized cross-validation, so tight chains keep their detail and
-// noisy ones are smoothed harder (opts.method 'chi2' instead takes the
-// smoothest fit inside the spreads; kept for comparison). A natural cubic
-// spline through the grid values gives a curve with continuous curvature, so
-// the density (its second derivative in strike) has no kinks. Unlike a global
-// polynomial it can follow the "frown" a two-outcome market produces.
+// noisy ones are smoothed harder. A natural cubic spline through the grid
+// values gives a curve with continuous curvature, so the density (its second
+// derivative in strike) has no kinks. Unlike a global polynomial it can follow
+// the "frown" a two-outcome market produces.
 
 const FIT_NODES = 48;
 const FIT_GCV_GAMMA = 2; // >1 penalizes flexibility more than plain GCV (Kim & Gu 2004)
 const FIT_SD_FLOOR = 0.005; // relative to ATM total variance
 
-function fitSmile(pts, T, opts = {}) {
+function fitSmile(pts, T, boost = 1) {
   const n = pts.length;
   if (n < 4) return null;
   const kMin = pts[0].k, kMax = pts[n - 1].k;
@@ -183,9 +225,9 @@ function fitSmile(pts, T, opts = {}) {
 
   const M = FIT_NODES, hk = (kMax - kMin) / (M - 1);
   const grid = Array.from({ length: M }, (_, j) => kMin + j * hk);
-  const A0 = Array.from({ length: M }, () => Array(M).fill(0));
-  const P = Array.from({ length: M }, () => Array(M).fill(0));
-  const rhs = Array(M).fill(0);
+  // Data term A0 (tridiagonal: a0 diagonal, a1 first off-diagonal) and the
+  // second-difference penalty P (pentadiagonal: p0, p1, p2), as diagonals.
+  const a0 = new Float64Array(M), a1 = new Float64Array(M), rhs = new Float64Array(M);
   const obs = pts.map(p => {
     const j = Math.min(M - 2, Math.max(0, Math.floor((p.k - kMin) / hk)));
     const f = Math.min(1, Math.max(0, (p.k - grid[j]) / hk));
@@ -194,99 +236,126 @@ function fitSmile(pts, T, opts = {}) {
   });
   for (const o of obs) {
     const b0 = 1 - o.f, b1 = o.f;
-    A0[o.j][o.j] += o.wt * b0 * b0; A0[o.j][o.j + 1] += o.wt * b0 * b1;
-    A0[o.j + 1][o.j] += o.wt * b0 * b1; A0[o.j + 1][o.j + 1] += o.wt * b1 * b1;
+    a0[o.j] += o.wt * b0 * b0; a0[o.j + 1] += o.wt * b1 * b1; a1[o.j] += o.wt * b0 * b1;
     rhs[o.j] += o.wt * b0 * o.y; rhs[o.j + 1] += o.wt * b1 * o.y;
   }
   const pen = 1 / (hk * hk * hk); // integral of squared curvature: sum (d2/hk^2)^2 * hk
-  for (let j = 1; j < M - 1; j++) {
-    const e = [[j - 1, 1], [j, -2], [j + 1, 1]];
-    for (const [a, ea] of e) for (const [b, eb] of e) P[a][b] += pen * ea * eb;
+  const p0 = new Float64Array(M), p1 = new Float64Array(M), p2 = new Float64Array(M);
+  for (let j = 1; j < M - 1; j++) { // each interior node adds (1, -2, 1)ᵀ(1, -2, 1) at j-1..j+1
+    p0[j - 1] += pen; p0[j] += 4 * pen; p0[j + 1] += pen;
+    p1[j - 1] -= 2 * pen; p1[j] -= 2 * pen;
+    p2[j - 1] += pen;
   }
+  const ridge = 1e-12 * Math.max(1, ...a0);
+  const d = new Float64Array(M), e = new Float64Array(M), f2 = new Float64Array(M);
+  const col = new Float64Array(M), sol = new Float64Array(M);
 
-  const solve = (lam, withTrace) => {
-    const A = A0.map((row, a) => row.map((v, b) => v + lam * P[a][b] + (a === b ? 1e-12 : 0)));
-    const lu = luFactor(A);
-    if (!lu) return null;
-    const z = lu(rhs);
+  const solve = lam => {
+    for (let i = 0; i < M; i++) { d[i] = a0[i] + lam * p0[i] + ridge; e[i] = a1[i] + lam * p1[i]; f2[i] = lam * p2[i]; }
+    const chol = pentaCholesky(d, e, f2);
+    if (!chol) return null;
+    const z = chol(rhs);
     let chi2 = 0;
-    for (const o of obs) { const e = o.y - ((1 - o.f) * z[o.j] + o.f * z[o.j + 1]); chi2 += o.wt * e * e; }
-    let trace = 0;
-    if (withTrace) for (let c = 0; c < M; c++) trace += lu(A0.map(row => row[c]))[c]; // tr((A0 + lam P)^-1 A0)
+    for (const o of obs) { const r = o.y - ((1 - o.f) * z[o.j] + o.f * z[o.j + 1]); chi2 += o.wt * r * r; }
+    let trace = 0; // tr((A0 + lam P)^-1 A0), one solve per column of A0
+    for (let c = 0; c < M; c++) {
+      col.fill(0);
+      col[c] = a0[c];
+      if (c > 0) col[c - 1] = a1[c - 1];
+      if (c + 1 < M) col[c + 1] = a1[c];
+      trace += chol(col, sol)[c];
+    }
     return { z, chi2, trace };
   };
 
-  let best = null;
-  if (opts.method === 'chi2') {
-    let loL = -14, hiL = 4;
-    best = solve(Math.pow(10, loL));
-    if (!best) return null;
-    const target = Math.max((opts.chi2 ?? 1) * n, 1.25 * best.chi2);
-    const top = solve(Math.pow(10, hiL));
-    if (top && top.chi2 <= target) best = top;
-    else for (let i = 0; i < 30; i++) {
-      const mid = (loL + hiL) / 2, s = solve(Math.pow(10, mid));
-      if (s && s.chi2 <= target) { best = s; loL = mid; } else hiL = mid;
-    }
-  } else {
-    // Generalized cross-validation: pick the penalty that best predicts
-    // left-out quotes, so the smoothing adapts to how noisy this chain is.
-    let bestScore = Infinity;
-    for (let L = -12; L <= 4; L += 0.5) {
-      const s = solve(Math.pow(10, L), true);
-      if (!s) continue;
-      const dof = n - (opts.gamma ?? FIT_GCV_GAMMA) * s.trace;
-      if (!(dof > 0.5)) continue;
-      const score = n * s.chi2 / (dof * dof);
-      if (score < bestScore) { bestScore = score; best = s; }
-    }
-    if (!best) return null;
+  // Generalized cross-validation: pick the penalty that best predicts
+  // left-out quotes, so the smoothing adapts to how noisy this chain is.
+  let best = null, bestScore = Infinity;
+  for (let L = -12; L <= 4; L += 0.5) {
+    const s = solve(Math.pow(10, L));
+    if (!s) continue;
+    const dof = n - FIT_GCV_GAMMA * s.trace;
+    if (!(dof > 0.5)) continue;
+    const score = n * s.chi2 / (dof * dof);
+    if (score < bestScore) { bestScore = score; best = { s, lam: Math.pow(10, L) }; }
   }
+  if (!best) return null;
+  // `boost` > 1 smooths harder than GCV chose (see modelExpiry).
+  if (boost !== 1) best = { s: solve(best.lam * boost) || best.s };
+  best = best.s;
 
-  const ws = best.z.map(v => v * scale);
+  const ws = Array.from(best.z, v => v * scale);
   const spline = naturalSpline(grid, ws);
   const floor = 1e-4 * T; // 1% volatility
-  // Wings beyond the quotes. Each starts with the spline's own edge slope (so
-  // the smile has no kink there, and the density no spike) and bends over a
-  // blend zone into a final slope that respects Lee's moment bound
-  // (|dw/dk| <= 2) and does not turn back toward the money.
-  const blend = Math.max(0.02, 0.25 * (kMax - kMin));
-  const wing = (w0, s0, sEnd) => x => x < blend
-    ? w0 + s0 * x + (sEnd - s0) * x * x / (2 * blend)
-    : w0 + (s0 + sEnd) * blend / 2 + sEnd * (x - blend);
+  // Wings beyond the quotes. Each starts with the spline's own value, slope
+  // and (zero) curvature, and its slope eases into a final slope that respects
+  // Lee's moment bound (|dw/dk| <= 2) and does not turn back toward the money.
+  // The smoothstep blend keeps the curvature continuous at both ends of the
+  // blend zone, so the density has no step or bump at the last quote.
+  const blend = Math.max(0.04, 0.3 * (kMax - kMin));
+  const wing = (w0, s0, sEnd) => x => {
+    if (x >= blend) return w0 + (s0 + sEnd) * blend / 2 + sEnd * (x - blend);
+    const t = x / blend;
+    return w0 + s0 * x + (sEnd - s0) * blend * (t * t * t - t * t * t * t / 2);
+  };
   const s0Lo = -spline.slope(kMin), s0Hi = spline.slope(kMax); // slopes in the outward direction
   const left = wing(ws[0], s0Lo, Math.min(2, Math.max(0, s0Lo)));
   const right = wing(ws[M - 1], s0Hi, Math.min(2, Math.max(0, s0Hi)));
-  return k => Math.max(floor,
+  const smile = k => Math.max(floor,
     k < kMin ? left(kMin - k) : k > kMax ? right(k - kMax) : spline.value(k));
+  smile.kMin = kMin; smile.kMax = kMax;
+  return smile;
 }
 
 // ---------- Density (Breeden-Litzenberger) ----------
+//
+// The grid is uniform in log-strike, so it stays fine near the money however
+// wide the distribution is (a grid uniform in strike gets coarser than the
+// price itself on high-volatility, long-dated chains). It spans ±7 standard
+// deviations of the wing volatility on each side, capped (see below). `mass`, the raw integral
+// before normalizing, is the market's total probability on the grid; it must
+// be close to 1 or the expiry is rejected by modelExpiry.
 
-const GRID_N = 241;
+const GRID_N = 601;
+const GRID_SPAN_SD = 7;
+const GRID_MAX_LOG = 4;
+const GRID_MIN_LOG = 12;
+const MAX_MASS_ERROR = 0.03;
+const MAX_ARBITRAGE = 0.005;
+const SMOOTHING_BOOSTS = [1, 4, 16, 64, 256, 1024];
 
 function density(F, T, D, smile) {
   const sd0 = Math.sqrt(smile(0));
   if (!(sd0 > 0)) return null;
-  const sdLo = Math.sqrt(Math.max(smile(0), smile(-2.5 * sd0)));
-  const sdHi = Math.sqrt(Math.max(smile(0), smile(2.5 * sd0)));
-  const lo = F * Math.exp(-5 * sdLo), hi = F * Math.exp(5 * sdHi);
-  const h = (hi - lo) / (GRID_N - 1);
-  const C = K => K <= 0 ? D * F : black76Call(F, K, T, Math.sqrt(smile(Math.log(K / F)) / T), D);
-  const Cs = [];
-  for (let i = -1; i <= GRID_N; i++) Cs.push(C(lo + i * h));
-  const Ks = [], raw = [];
+  const sdLo = Math.sqrt(Math.max(smile(0), smile(-3 * sd0)));
+  const sdHi = Math.sqrt(Math.max(smile(0), smile(3 * sd0)));
+  // The upside is capped at e^GRID_MAX_LOG (about 55x the forward): the
+  // extrapolated right wing carries no information beyond that and only adds
+  // numerical error. The downside may run toward zero, where price is bounded.
+  const x0 = -Math.min(GRID_MIN_LOG, GRID_SPAN_SD * sdLo), x1 = Math.min(GRID_MAX_LOG, GRID_SPAN_SD * sdHi), dx = (x1 - x0) / (GRID_N - 1);
+  const K = i => F * Math.exp(x0 + i * dx);
+  const C = k => black76Call(F, k, T, Math.sqrt(smile(Math.log(k / F)) / T), D);
+  const Ks = [], Cs = [];
+  for (let i = -1; i <= GRID_N; i++) Cs.push(C(K(i)));
+  for (let i = 0; i < GRID_N; i++) Ks.push(K(i));
+  const raw = [], neg = [];
   for (let i = 0; i < GRID_N; i++) {
-    Ks.push(lo + i * h);
-    const v = (Cs[i + 2] - 2 * Cs[i + 1] + Cs[i]) / (h * h) / D;
+    const kl = K(i - 1), km = Ks[i], kr = K(i + 1);
+    const v = 2 * ((Cs[i + 2] - Cs[i + 1]) / (kr - km) - (Cs[i + 1] - Cs[i]) / (km - kl)) / (kr - kl) / D;
     raw.push(Number.isFinite(v) && v > 0 ? v : 0);
+    neg.push(Number.isFinite(v) && v < 0 ? -v : 0);
   }
-  let area = 0;
-  for (let i = 1; i < GRID_N; i++) area += 0.5 * (raw[i] + raw[i - 1]) * h;
+  let area = 0, negArea = 0;
+  for (let i = 1; i < GRID_N; i++) {
+    area += 0.5 * (raw[i] + raw[i - 1]) * (Ks[i] - Ks[i - 1]);
+    negArea += 0.5 * (neg[i] + neg[i - 1]) * (Ks[i] - Ks[i - 1]);
+  }
   if (!(area > 0) || !Number.isFinite(area)) return null;
   const pdf = raw.map(v => v / area), cdf = [0];
-  for (let i = 1; i < GRID_N; i++) cdf.push(cdf[i - 1] + 0.5 * (pdf[i] + pdf[i - 1]) * h);
-  return { Ks, pdf, cdf, mass: area };
+  for (let i = 1; i < GRID_N; i++) cdf.push(cdf[i - 1] + 0.5 * (pdf[i] + pdf[i - 1]) * (Ks[i] - Ks[i - 1]));
+  // `arbitrage`: probability the fitted smile priced below zero (butterfly
+  // arbitrage), clipped out above; near 0 for a clean fit.
+  return { Ks, pdf, cdf, mass: area, arbitrage: negArea / area };
 }
 
 // ---------- Shape ----------
@@ -310,47 +379,94 @@ function cdfAt(d, x) {
   return 1;
 }
 
-// Two-outcome detection. A peak counts if it is >= 25% of the tallest and at
+// Two-outcome detection, with the numbers behind the verdict.
+// Rules (the spec's): a peak counts if it is >= 25% of the tallest and at
 // least 3% of F from any taller peak; the Fork needs the valley between the
-// two tallest peaks below 70% of the smaller one.
-function fork(d, F) {
+// two tallest peaks below 70% of the smaller one. A data gate is added: both
+// peaks must lie inside the quoted strikes (not in the extrapolated wings),
+// with at least FORK_MIN_STRIKES quotes between each peak and the valley, and
+// the quotes must span at least FORK_MIN_COVERAGE of the probability, so
+// sparse, noisy or mostly-extrapolated chains cannot produce a Fork.
+const FORK_HEIGHT = 0.25, FORK_SEPARATION = 0.03, FORK_VALLEY = 0.7, FORK_MIN_STRIKES = 2, FORK_MIN_COVERAGE = 0.75;
+
+function forkDiagnostics(d, F, strikes) {
   const g = [0.06, 0.24, 0.40, 0.24, 0.06], n = d.pdf.length;
   const s = d.pdf.map((_, i) => g.reduce((a, w, j) => a + w * d.pdf[Math.min(n - 1, Math.max(0, i + j - 2))], 0));
   const top = Math.max(...s);
-  const peaks = [];
-  for (let i = 1; i < n - 1; i++) if (s[i] > s[i - 1] && s[i] >= s[i + 1] && s[i] >= 0.25 * top) peaks.push(i);
-  peaks.sort((a, b) => s[b] - s[a]);
+  const local = [];
+  for (let i = 1; i < n - 1; i++) if (s[i] > s[i - 1] && s[i] >= s[i + 1]) local.push(i);
+  local.sort((a, b) => s[b] - s[a]);
+  // The two tallest peaks at least FORK_SEPARATION apart (height checked below).
   const kept = [];
-  for (const i of peaks) if (kept.every(j => Math.abs(d.Ks[i] - d.Ks[j]) > 0.03 * F)) kept.push(i);
-  if (kept.length < 2) return null;
+  for (const i of local) if (kept.every(j => Math.abs(d.Ks[i] - d.Ks[j]) > FORK_SEPARATION * F)) kept.push(i);
+  const out = { fork: null, peaks: kept.length >= 2 ? 2 : 1, height: null, separation: null, valley: null, reason: 'one peak' };
+  if (kept.length < 2) return out;
   const [a, b] = kept.slice(0, 2).sort((x, y) => x - y);
   let v = a;
   for (let i = a; i <= b; i++) if (s[i] < s[v]) v = i;
-  if (s[v] >= 0.7 * Math.min(s[a], s[b])) return null;
-  return { low: d.Ks[a], high: d.Ks[b], valley: d.Ks[v] };
+  out.height = Math.min(s[a], s[b]) / top;
+  out.separation = (d.Ks[b] - d.Ks[a]) / F;
+  out.valley = s[v] / Math.min(s[a], s[b]);
+  if (out.height < FORK_HEIGHT) { out.reason = 'second peak too small'; return out; }
+  if (out.valley >= FORK_VALLEY) { out.reason = 'valley too shallow'; return out; }
+  if (strikes && strikes.length) {
+    const lo = strikes[0], hi = strikes[strikes.length - 1];
+    const between = (x, y) => strikes.filter(k => k > Math.min(x, y) && k < Math.max(x, y)).length;
+    if (d.Ks[a] < lo || d.Ks[b] > hi) { out.reason = 'peak outside the quoted strikes'; return out; }
+    if (d.cdf[d.cdf.length - 1] > 0 && cdfAt(d, hi) - cdfAt(d, lo) < FORK_MIN_COVERAGE) { out.reason = 'quotes cover too little of the distribution'; return out; }
+    if (between(d.Ks[a], d.Ks[v]) < FORK_MIN_STRIKES || between(d.Ks[v], d.Ks[b]) < FORK_MIN_STRIKES) { out.reason = 'too few quotes between peaks'; return out; }
+  }
+  out.reason = 'fork';
+  out.fork = { low: d.Ks[a], high: d.Ks[b], valley: d.Ks[v] };
+  return out;
 }
 
-function describeShape(d, F) {
+function fork(d, F, strikes) {
+  return forkDiagnostics(d, F, strikes).fork;
+}
+
+function describeShape(d, F, strikes) {
   const q = QS.map(p => quantile(d, p));
   const q025 = q[0], q50 = q[3], q975 = q[6];
   return {
     q,
-    fork: fork(d, F),
+    fork: fork(d, F, strikes),
     skew: (q975 - q50) / ((q50 - q025) || 1e-12),
-    leftTail: cdfAt(d, 0.9 * F),
-    rightTail: 1 - cdfAt(d, 1.1 * F),
   };
 }
 
-// One expiry, end to end: chain slice -> shape, or null when too thin.
-function modelExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
+// One expiry, end to end, keeping every intermediate (used by modelExpiry
+// and by the website's step-by-step views). `ok` is false, with a `reason`,
+// when the expiry is too thin, its forward is unusable, or its density does
+// not hold the market's probability.
+function fitExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
   const { F, D, pts } = cleanExpiry(byStrike, S, T, r, maxSpread);
-  if (pts.length < minStrikes) return null;
-  const smile = fitSmile(pts, T);
-  if (!smile) return null;
-  const d = density(F, T, D, smile);
-  if (!d) return null;
-  return Object.assign({ T, F, strikes: pts.length }, describeShape(d, F));
+  const out = { F, D, pts, smile: null, d: null, ok: false, reason: '' };
+  if (!(F > 0)) { out.reason = 'no usable forward'; return out; }
+  if (pts.length < minStrikes) { out.reason = 'too few liquid strikes'; return out; }
+  // Start from the smoothing GCV picks; if the implied density still has
+  // butterfly arbitrage (negative probability), smooth harder until it does
+  // not. Tiny ripples in a high-volatility smile are amplified by the second
+  // derivative; clipping them would leave spikes that look like peaks.
+  for (const boost of SMOOTHING_BOOSTS) {
+    out.smile = fitSmile(pts, T, boost);
+    if (!out.smile) { out.reason = 'smile fit failed'; return out; }
+    out.d = density(F, T, D, out.smile);
+    if (out.d && out.d.arbitrage <= MAX_ARBITRAGE) break;
+  }
+  if (!out.d) out.reason = 'no density';
+  else if (out.d.arbitrage > MAX_ARBITRAGE) out.reason = 'quotes imply negative probability';
+  else if (Math.abs(out.d.mass - 1) > MAX_MASS_ERROR) out.reason = 'probability does not add up';
+  else out.ok = true;
+  return out;
+}
+
+// One expiry -> its shape (with its density and quoted strikes), or null.
+function modelExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
+  const f = fitExpiry(byStrike, S, T, r, maxSpread, minStrikes);
+  if (!f.ok) return null;
+  const strikes = f.pts.map(p => p.K);
+  return Object.assign({ T, F: f.F, d: f.d, strikes }, describeShape(f.d, f.F, strikes));
 }
 
 // ---------- Project: expiry shapes -> one value per future bar ----------
@@ -359,21 +475,21 @@ function modelExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
 // every calendar day is a bar (what TrendSpider's own Expected Move script
 // assumes); in 'trading' mode only weekdays are bars. t is always calendar
 // time in years, so the model's clock is the same either way.
-function projectionTimeline(mode, lastTimeSec, maxDte) {
-  const times = [0], barOfDte = { 0: 0 };
+function projectionTimeline(mode, lastTimeSec, maxDays) {
+  const times = [0], barOfDay = { 0: 0 };
   if (mode !== 'trading') {
-    for (let d = 1; d <= maxDte; d++) { times.push(d / 365); barOfDte[d] = d; }
-    return { times, barOfDte };
+    for (let d = 1; d <= maxDays; d++) { times.push(d / 365); barOfDay[d] = d; }
+    return { times, barOfDay };
   }
   const ms = lastTimeSec > 1e12 ? lastTimeSec : lastTimeSec * 1000;
   const start = new Date(Number.isFinite(ms) ? ms : Date.now());
   let bar = 0;
-  for (let d = 1; d <= maxDte; d++) {
+  for (let d = 1; d <= maxDays; d++) {
     const dow = new Date(start.getTime() + d * 86400000).getUTCDay();
     if (dow !== 0 && dow !== 6) { bar++; times.push(d / 365); }
-    barOfDte[d] = bar;
+    barOfDay[d] = bar;
   }
-  return { times, barOfDte };
+  return { times, barOfDay };
 }
 
 // Each quantile is carried in normalized space u = ln(q / F) / sqrt(T) and
@@ -384,13 +500,14 @@ function projectionTimeline(mode, lastTimeSec, maxDte) {
 // close) and reaches each expiry's quantiles, scaled by anchor / S.
 function projectQuantiles(shapes, S, anchor, times) {
   const lines = QS.map(() => [anchor]);
+  if (!shapes.length) return lines;
   const ell = shapes.map(s => Math.log(s.F / S));
   const u = shapes.map(s => s.q.map(q => Math.log(q / s.F) / Math.sqrt(s.T)));
   const last = shapes[shapes.length - 1].T;
   for (let i = 1; i < times.length; i++) {
     const t = times[i];
     if (t > last + 1e-9) { lines.forEach(l => l.push(null)); continue; }
-    let n = shapes.findIndex(s => s.T >= t - 1e-9);
+    const n = shapes.findIndex(s => s.T >= t - 1e-9);
     const p = n - 1;
     let lv, uv;
     if (p < 0) {
@@ -405,6 +522,33 @@ function projectQuantiles(shapes, S, anchor, times) {
     vals.forEach((v, j) => lines[j].push(v));
   }
   return lines;
+}
+
+// ---------- Expiry selection and matching ----------
+
+// Expiry codes come as YYYYMMDD in the schedule and YYMMDD as chain keys in
+// TrendSpider's docs; both reduce to the same YYMMDD key. Non-date codes are
+// kept as they are.
+function expiryKey(code) {
+  const digits = String(code).replace(/\D/g, '');
+  return digits.length >= 6 ? digits.slice(-6) : String(code);
+}
+
+// Target horizons (calendar days) for N expirations: a spread from a week out
+// to the edge of the drawable window, so a ticker with an expiry every
+// weekday still gets a cloud that reaches weeks ahead, not N days.
+const HORIZONS = {
+  1: [30], 2: [14, 30], 3: [7, 14, 30], 4: [7, 14, 30, 60],
+  5: [7, 14, 30, 45, 60], 6: [7, 14, 21, 30, 45, 60], 7: [7, 14, 21, 30, 45, 60, 90], 8: [7, 10, 14, 21, 30, 45, 60, 90],
+};
+
+// For each target horizon, the candidate expiries ordered by closeness (in
+// log-days). The caller models them in this order and keeps the first that
+// works, so a thin or missing expiry is replaced by its nearest neighbour.
+function expiryPlan(days, count) {
+  const targets = HORIZONS[Math.max(1, Math.min(8, Math.round(count) || 4))];
+  return targets.map(t => days.map((d, i) => ({ i, d, dist: Math.abs(Math.log(d / t)) }))
+    .sort((x, y) => x.dist - y.dist || x.d - y.d).map(x => x.i));
 }
 
 // ---------- Labels ----------
@@ -462,44 +606,93 @@ assert(String(current.resolution).toUpperCase() === 'D', 'Implied runs on the Da
 const NO_DATA = 'No options data for ' + current.ticker + '. Implied needs a ticker with listed options and an OPRA subscription.';
 const [schedule, chain] = await Promise.all([
   request.options_schedule(current.ticker),
-  request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a', 'l'], 'all'),
+  request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a'], 'all'),
 ]);
 assert(schedule && !schedule.error && Array.isArray(schedule) && schedule.length > 0,
   NO_DATA + (schedule && schedule.error ? ' (' + schedule.error + ')' : ''));
 assert(chain && !chain.error && chain.resultByExpiration,
   NO_DATA + (chain && chain.error ? ' (' + chain.error + ')' : ''));
 
-const expiries = schedule
-  .filter(e => e && e.expiration && Number(e.expiration.dte) >= 1)
-  .sort((a, b) => a.expiration.dte - b.expiration.dte)
-  .slice(0, EXPIRIES);
-assert(expiries.length > 0, NO_DATA);
-
 const lastClose = close[close.length - 1];
 const quotedSpot = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
 const SPOT = quotedSpot > 0 ? quotedSpot : lastClose;
-assert(SPOT > 0, NO_DATA);
+assert(SPOT > 0 && lastClose > 0, NO_DATA);
+// The cloud starts at the last close; every price shown (bands, Fork ticks,
+// summary panel) is on that same footing, scaled by lastClose / SPOT.
+const SCALE = lastClose / SPOT;
+const lastTimeRaw = Number(time[time.length - 1]);
+const lastTime = lastTimeRaw > 1e12 ? lastTimeRaw / 1000 : lastTimeRaw; // seconds
 
-// ---------- Model, per expiry ----------
-const expiryShapes = [];
-for (const e of expiries) {
-  const byStrike = chain.resultByExpiration[e.expiration.code];
-  if (!byStrike) continue;
-  const dte = Number(e.expiration.dte);
-  let shape = null;
-  try {
-    shape = modelExpiry(byStrike, SPOT, dte / 365, RATE, MAX_SPREAD, MIN_STRIKES);
-  } catch (err) {
-    shape = null; // a bad expiry is skipped; the others still draw
-  }
-  if (shape && shape.q.every(Number.isFinite)) expiryShapes.push(Object.assign({ dte, byStrike }, shape));
+// ---------- Match expirations to the chain ----------
+// The schedule's codes (YYYYMMDD in TrendSpider's docs) and the chain's keys
+// (YYMMDD) are compared on a normalized YYMMDD key; the expiration's
+// year/month/day is a second way to build that key.
+const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+const chainByKey = {};
+for (const key of Object.keys(chain.resultByExpiration)) chainByKey[expiryKey(key)] = chain.resultByExpiration[key];
+function chainFor(x) {
+  const byCode = chainByKey[expiryKey(x.code)];
+  if (byCode) return byCode;
+  const m = MONTHS[String(x.month || '').slice(0, 3).toLowerCase()] || Number(x.month);
+  if (!(x.year > 0 && m > 0 && x.day > 0)) return null;
+  const pad = v => String(v).padStart(2, '0');
+  return chainByKey[pad(x.year % 100) + pad(m) + pad(x.day)] || null;
 }
+// Calendar days from the last candle to an expiry: from its timestamp when
+// given, so weekends and holidays between the last bar and today don't shift
+// the cloud; otherwise its days-to-expiry.
+function daysOut(x) {
+  const ts = Number(x.timestamp);
+  if (ts > 0 && lastTime > 0) {
+    const d = Math.round((ts - lastTime) / 86400);
+    if (d >= 1) return d;
+  }
+  return Number(x.dte);
+}
+
+const horizon = projectionTimeline(PROJECTION_DAYS, lastTime, 400);
+const candidates = schedule
+  .filter(e => e && e.expiration && Number(e.expiration.dte) >= 1)
+  .map(e => ({ x: e.expiration, byStrike: chainFor(e.expiration), day: daysOut(e.expiration) }))
+  .filter(c => c.byStrike && c.day >= 1 && horizon.barOfDay[c.day] < MAX_PROJECTION)
+  .sort((a, b) => a.day - b.day);
+assert(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + ' days.');
+
+// ---------- Model: pick expiries by horizon ----------
+// For each target horizon, model the nearest expiry; if it is too thin, try
+// its neighbours. A ticker with an expiry every weekday still gets a cloud
+// that reaches weeks out.
+const modelled = new Map();
+function shapeOf(i) {
+  if (!modelled.has(i)) {
+    const c = candidates[i], dte = Number(c.x.dte);
+    let shape = null;
+    try {
+      shape = modelExpiry(c.byStrike, SPOT, dte / 365, RATE, MAX_SPREAD, MIN_STRIKES);
+    } catch (err) {
+      shape = null; // a bad expiry is skipped; another one takes its place
+    }
+    modelled.set(i, shape && shape.q.every(Number.isFinite) ? Object.assign({ dte, day: c.day }, shape) : null);
+  }
+  return modelled.get(i);
+}
+const chosen = new Set();
+for (const order of expiryPlan(candidates.map(c => c.day), EXPIRIES)) {
+  for (const i of order.slice(0, 4)) {
+    if (chosen.has(i)) continue;
+    if (shapeOf(i)) { chosen.add(i); break; }
+  }
+}
+const expiryShapes = [...chosen].map(i => modelled.get(i)).sort((a, b) => a.day - b.day);
 assert(expiryShapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
 
 // ---------- Project ----------
-const lastDte = expiryShapes[expiryShapes.length - 1].dte;
-const projTimeline = projectionTimeline(PROJECTION_DAYS, time[time.length - 1], lastDte);
-const bandValues = projectQuantiles(expiryShapes, SPOT, lastClose, projTimeline.times)
+// The model's clock (T) runs from now; the chart's runs from the last candle,
+// so each expiry is placed at its own day offset.
+const lastDay = expiryShapes[expiryShapes.length - 1].day;
+const projTimeline = projectionTimeline(PROJECTION_DAYS, lastTime, lastDay);
+const placed = expiryShapes.map(s => ({ F: s.F, q: s.q, T: s.day / 365 }));
+const bandValues = projectQuantiles(placed, SPOT, lastClose, projTimeline.times)
   .map(vals => vals.slice(0, MAX_PROJECTION));
 
 // ---------- Paint: bands ----------
@@ -527,11 +720,11 @@ const markLength = Math.min(MAX_PROJECTION, projTimeline.times.length);
 const forkMarks = { high: Array(markLength).fill(null), low: Array(markLength).fill(null), valley: Array(markLength).fill(null) };
 if (SHOW_FORK) {
   for (const s of forkShapes) {
-    const bar = projTimeline.barOfDte[s.dte];
+    const bar = projTimeline.barOfDay[s.day];
     for (let i = Math.max(1, bar - 2); i <= bar && i < markLength; i++) {
-      forkMarks.high[i] = s.fork.high;
-      forkMarks.low[i] = s.fork.low;
-      forkMarks.valley[i] = s.fork.valley;
+      forkMarks.high[i] = s.fork.high * SCALE;
+      forkMarks.low[i] = s.fork.low * SCALE;
+      forkMarks.valley[i] = s.fork.valley * SCALE;
     }
   }
 }
@@ -544,9 +737,9 @@ paint_projection(forkMarks.valley, { name: 'Fork least likely', color: COLORS.va
 // a small chart of the distribution at the expiry that matters most (the first
 // Fork if there is one, otherwise the farthest expiry).
 const focus = (SHOW_FORK && forkShapes[0]) || expiryShapes[expiryShapes.length - 1];
-paint_overlay('Implied summary', { position: 'top_left' }, summaryOverlay(focus, expiryShapes, lastDte > MAX_PROJECTION - 1));
+paint_overlay('Implied summary', { position: 'top_left' }, summaryOverlay(focus, expiryShapes));
 
-function summaryOverlay(s, all, clipped) {
+function summaryOverlay(s, all) {
   const text = (t, extra) => Object.assign({ text: t, color: 'var(--text-color)', fontSize: '12px', padding: '2px 10px', textAlign: 'left' }, extra || {});
   const d = densityFor(s);
   const tag = skewTag(all[all.length - 1].skew);
@@ -560,20 +753,20 @@ function summaryOverlay(s, all, clipped) {
       options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 5, font: { size: 10 } }, grid: { display: false } }, y: { display: false } } },
     } }] });
   }
-  rows.push({ cells: [text('Median ' + formatPrice(s.q[3]) + ' · 95% range ' + formatPrice(s.q[0]) + ' – ' + formatPrice(s.q[6]))] });
+  rows.push({ cells: [text('Median ' + formatPrice(s.q[3] * SCALE) + ' · 95% range ' + formatPrice(s.q[0] * SCALE) + ' – ' + formatPrice(s.q[6] * SCALE))] });
   rows.push({ cells: [text(tag ? tag + ' (to ' + all[all.length - 1].dte + ' days)' : 'Close to symmetric')] });
-  if (SHOW_FORK && s.fork) rows.push({ cells: [text(forkLabel(s.fork), { color: COLORS.fork, fontWeight: '600' })] });
-  if (clipped) rows.push({ cells: [text('Cloud drawn to ' + (MAX_PROJECTION - 1) + ' days (platform limit)', { fontSize: '11px', opacity: 0.7 })] });
+  if (SHOW_FORK && s.fork) {
+    const f = { low: s.fork.low * SCALE, high: s.fork.high * SCALE, valley: s.fork.valley * SCALE };
+    rows.push({ cells: [text(forkLabel(f), { color: COLORS.fork, fontWeight: '600' })] });
+  }
   rows.push({ cells: [text('Risk-neutral: the price of each outcome, not a forecast.', { fontSize: '10px', opacity: 0.6, paddingBottom: '8px' })] });
   return { background: 'var(--background-color)', border: 'solid 1px var(--border-color)', borderRadius: '8px', rows };
 }
 
-// Density at one expiry, resampled to 40 points between its 1st and 99th
-// percentile for the overlay chart.
+// The expiry's density (already computed by modelExpiry), resampled to 40
+// points between its 1st and 99th percentile for the overlay chart.
 function densityFor(s) {
-  const clean = cleanExpiry(s.byStrike, SPOT, s.T, RATE, MAX_SPREAD);
-  const smile = fitSmile(clean.pts, s.T);
-  const d = smile && density(clean.F, s.T, clean.D, smile);
+  const d = s.d;
   if (!d) return null;
   const lo = quantile(d, 0.01), hi = quantile(d, 0.99), labels = [], values = [];
   for (let i = 0; i < 40; i++) {
@@ -581,7 +774,8 @@ function densityFor(s) {
     let j = 1;
     while (j < d.Ks.length - 1 && d.Ks[j] < K) j++;
     const t = (K - d.Ks[j - 1]) / (d.Ks[j] - d.Ks[j - 1]);
-    labels.push(K < 100 ? K.toFixed(1) : Math.round(K).toString());
+    const shown = K * SCALE;
+    labels.push(shown < 100 ? shown.toFixed(1) : Math.round(shown).toString());
     values.push(+(d.pdf[j - 1] + t * (d.pdf[j] - d.pdf[j - 1])).toPrecision(4));
   }
   return { labels, values };
