@@ -439,7 +439,7 @@ const SHOW_FORK = input.number('Show Fork (1 = on, 0 = off)', 1, { min: 0, max: 
 // Move script indexes by dte) or a trading day? Switch to 'trading' if bars skip weekends.
 const PROJECTION_DAYS = 'calendar';
 
-const r = RATE_PCT / 100;
+const RATE = RATE_PCT / 100;
 const COLORS = { band: '#5b8def', median: '#9aa0b4', fork: '#ffb347', valley: '#7d8296' };
 
 assert(/^(d|1d|day|daily)$/i.test(String(current.resolution)), 'Implied runs on the Daily timeframe only.');
@@ -463,68 +463,69 @@ assert(chain && !chain.error && chain.resultByExpiration,
   NO_DATA + (chain && chain.error ? ' (' + chain.error + ')' : ''));
 
 const lastClose = close[close.length - 1];
-const quoted = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
-const S = quoted > 0 ? quoted : lastClose;
-assert(S > 0, NO_DATA);
+const quotedSpot = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
+const SPOT = quotedSpot > 0 ? quotedSpot : lastClose;
+assert(SPOT > 0, NO_DATA);
 
 // ---------- Model, per expiry ----------
-const shapes = [];
+const expiryShapes = [];
 for (const e of expiries) {
   const byStrike = chain.resultByExpiration[e.expiration.code];
   if (!byStrike) continue;
   const dte = Number(e.expiration.dte);
   let shape = null;
   try {
-    shape = modelExpiry(byStrike, S, dte / 365, r, MAX_SPREAD, MIN_STRIKES);
+    shape = modelExpiry(byStrike, SPOT, dte / 365, RATE, MAX_SPREAD, MIN_STRIKES);
   } catch (err) {
     shape = null; // a bad expiry is skipped; the others still draw
   }
-  if (shape && shape.q.every(Number.isFinite)) shapes.push(Object.assign({ dte }, shape));
+  if (shape && shape.q.every(Number.isFinite)) expiryShapes.push(Object.assign({ dte }, shape));
 }
-assert(shapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
+assert(expiryShapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
 
 // ---------- Project ----------
-const maxDte = shapes[shapes.length - 1].dte;
-const timeline = projectionTimeline(PROJECTION_DAYS, time[time.length - 1], maxDte);
-const values = projectQuantiles(shapes, S, lastClose, timeline.times);
-const lines = values.map(vals => {
+const lastDte = expiryShapes[expiryShapes.length - 1].dte;
+const projTimeline = projectionTimeline(PROJECTION_DAYS, time[time.length - 1], lastDte);
+const bandValues = projectQuantiles(expiryShapes, SPOT, lastClose, projTimeline.times);
+const bandSeries = bandValues.map(vals => {
   const s = series_of(null);
   vals.forEach((v, i) => { s[i] = v; });
   return s;
 });
 
 // ---------- Paint ----------
-const far = shapes[shapes.length - 1];
-const tag = skewTag(far.skew);
-const P = QS.map((q, j) => paint_projection(lines[j], {
+const farShape = expiryShapes[expiryShapes.length - 1];
+const skewText = skewTag(farShape.skew);
+const bands = QS.map((q, j) => paint_projection(bandSeries[j], {
   color: j === 3 ? COLORS.median : COLORS.band,
-  name: j === 3 ? 'Implied median' + (tag ? ' · ' + tag : '') : 'Implied ' + (q * 100).toFixed(1) + '%',
+  name: j === 3 ? 'Implied median' + (skewText ? ' · ' + skewText : '') : 'Implied ' + (q * 100).toFixed(1) + '%',
   style: j === 3 ? 'dotted' : 'solid',
   hidden: j !== 3,
 }));
-// Non-overlapping bands, so each shows its own opacity: tails, 80% range, core.
-fill(P[0], P[1], COLORS.band, 0.07);
-fill(P[5], P[6], COLORS.band, 0.07);
-fill(P[1], P[2], COLORS.band, 0.10);
-fill(P[4], P[5], COLORS.band, 0.10);
-fill(P[2], P[4], COLORS.band, 0.16);
+// Non-overlapping bands (tails, 80% range, core). The opacities are what the
+// spec's stacked 7% / 10% / 16% fills compound to, without double-drawing.
+fill(bands[0], bands[1], COLORS.band, 0.07);
+fill(bands[5], bands[6], COLORS.band, 0.07);
+fill(bands[1], bands[2], COLORS.band, 0.16);
+fill(bands[4], bands[5], COLORS.band, 0.16);
+fill(bands[2], bands[4], COLORS.band, 0.30);
 
 // Fork: short ticks on the last three bars up to each forked expiry. All
 // expiries share one series per mark, so the paint count stays fixed at three.
 // VERIFY: a text-label function for future bars; until then the label rides in
 // the series name, which the legend and hover show.
-const forks = shapes.filter(s => s.fork);
-if (SHOW_FORK && forks.length) {
+const forkShapes = expiryShapes.filter(s => s.fork);
+if (SHOW_FORK && forkShapes.length) {
   const marks = { high: series_of(null), low: series_of(null), valley: series_of(null) };
-  for (const s of forks) {
-    const bar = timeline.barOfDte[s.dte];
+  for (const s of forkShapes) {
+    const bar = projTimeline.barOfDte[s.dte];
     for (let i = Math.max(1, bar - 2); i <= bar; i++) {
       marks.high[i] = s.fork.high;
       marks.low[i] = s.fork.low;
       marks.valley[i] = s.fork.valley;
     }
   }
-  paint_projection(marks.high, { color: COLORS.fork, name: forkLabel(forks[0].fork) });
+  paint_projection(marks.high, { color: COLORS.fork, name: forkLabel(forkShapes[0].fork) });
   paint_projection(marks.low, { color: COLORS.fork, name: 'Fork: lower outcome' });
   paint_projection(marks.valley, { color: COLORS.valley, name: 'Fork: least likely zone', style: 'dashed' });
 }

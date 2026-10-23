@@ -32,7 +32,7 @@ test('SPY: seven quantile lines, five bands, downside skew tag, no Fork', async 
   assert.equal(median(out).style, 'dotted');
   assert.match(median(out).name, /^Implied median · Downside tail \d\.\d× upside$/);
   assert.deepEqual(out.fills.map(f => [f.a, f.b, f.opacity]),
-    [[0, 1, 0.07], [5, 6, 0.07], [1, 2, 0.10], [4, 5, 0.10], [2, 4, 0.16]]);
+    [[0, 1, 0.07], [5, 6, 0.07], [1, 2, 0.16], [4, 5, 0.16], [2, 4, 0.30]]);
   // starts at the last close, runs out to the last expiry (49 days), ordered
   const S = 580;
   out.projections.forEach(p => assert.ok(Math.abs(p.series[0] - S) < 1e-9));
