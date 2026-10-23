@@ -293,5 +293,35 @@
     }, 0.36, 220, 340);
   }
 
-  global.ImpliedCharts = { cloud: cloud, density: densityChart, smile: smileChart, quotes: quotesChart, fmtPrice: fmtPrice, QLABEL: QLABEL };
+  // ---------- The script's paint_overlay panel, drawn over a chart ----------
+  // Renders the overlay definition (rows of text cells and one Chart.js line
+  // chart) the way TrendSpider would place it: top left of the price chart.
+  function overlay(host, def) {
+    var old = host.querySelector('.ov'); if (old) old.remove();
+    var box = document.createElement('div'); box.className = 'ov';
+    def.rows.forEach(function (r) {
+      r.cells.forEach(function (c) {
+        if (c.chart) {
+          var d = c.chart.data, vals = d.datasets[0].data, n = vals.length, max = Math.max.apply(null, vals) || 1;
+          var W = 240, H = 84, pts = vals.map(function (v, i) { return (i / (n - 1) * W).toFixed(1) + ',' + (H - 14 - v / max * (H - 22)).toFixed(1); });
+          var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, width: '100%', height: H });
+          el('polygon', { points: '0,' + (H - 14) + ' ' + pts.join(' ') + ' ' + W + ',' + (H - 14), fill: 'rgba(91,141,239,.25)' }, svg);
+          el('polyline', { points: pts.join(' '), fill: 'none', stroke: C.band, 'stroke-width': 1.5 }, svg);
+          [0, Math.round((n - 1) / 2), n - 1].forEach(function (i, k) {
+            el('text', { x: i / (n - 1) * W, y: H - 2, fill: C.axis, 'font-size': 10, 'text-anchor': ['start', 'middle', 'end'][k] }, svg).textContent = d.labels[i];
+          });
+          box.appendChild(svg);
+        } else if (c.text) {
+          var p = document.createElement('div'); p.textContent = c.text;
+          if (/^IMPLIED/.test(c.text)) p.className = 'ov-h';
+          else if (/^Fork/.test(c.text)) p.className = 'ov-f';
+          else if (/^Risk-neutral|platform limit/.test(c.text)) p.className = 'ov-s';
+          box.appendChild(p);
+        }
+      });
+    });
+    host.appendChild(box);
+  }
+
+  global.ImpliedCharts = { overlay: overlay, cloud: cloud, density: densityChart, smile: smileChart, quotes: quotesChart, fmtPrice: fmtPrice, QLABEL: QLABEL };
 })(window);

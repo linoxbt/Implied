@@ -37,10 +37,10 @@ Implied is a free, open-source [TrendSpider](https://trendspider.com) custom ind
 | Middle bands | 10th–90th percentile: the 80% range |
 | Faint outer bands | 2.5th–97.5th percentile: the 95% range |
 | Dotted line | The median outcome |
-| One side wider than the other | The market is paying more for that tail. The legend says by how much, e.g. "Downside tail 1.4× upside" |
-| Orange ticks (the Fork) | The market prices two separate outcomes, usually around earnings. The grey tick between them is the least likely zone. The legend reads e.g. "Fork: $182.00 / $201.00 · least likely $190.00" |
+| One side wider than the other | The market is paying more for that tail. The summary panel says by how much, e.g. "Downside tail 1.4× upside" |
+| Orange ticks (the Fork) | The market prices two separate outcomes, usually around earnings. The grey tick between them is the least likely zone. The summary panel reads e.g. "Fork: $182.00 / $201.00 · least likely $190.00" |
 
-Exact prices for every band are in the indicator's legend and hover.
+A summary panel (top left) shows a small chart of the distribution at the expiry that matters most, its median and 95% range, the skew in words, and the Fork prices. Exact prices for every band are in the legend and on hover.
 
 This is the market's **risk-neutral** distribution: the price of each outcome. It includes risk premia, so it is not a guaranteed forecast of real-world odds.
 
@@ -72,7 +72,7 @@ The design follows the [build spec](https://claude.ai/artifact/55ZafVmcfj2QnxCYQ
 | Risk-free rate (%) | 4.0 | 0–15 | Discounting in parity and pricing |
 | Max bid-ask spread (fraction of mid) | 0.5 | 0.05–2 | Drops stale, illiquid quotes |
 | Min usable strikes per expiry | 8 | 5–60 | Skips expiries too thin to fit |
-| Show Fork (1 = on, 0 = off) | 1 | 0–1 | Hides the Fork marks |
+| Show Fork | On | On / off | Hides the Fork marks and the Fork line in the panel |
 
 ## On-chart messages
 

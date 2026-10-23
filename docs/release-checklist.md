@@ -16,7 +16,7 @@ Each item is a disqualification or scoring risk, so each is a release gate. Sour
 
 ## Live checks on TrendSpider
 
-- [ ] SPY and QQQ: smooth cloud, downside tail wider than upside, "Downside tail" in the legend.
+- [ ] SPY and QQQ: smooth cloud, downside tail wider than upside, "Downside tail" in the summary panel.
 - [ ] Nearest expiry: TrendSpider's Expected Move range (about ±1 standard deviation, a 68% range) should land between Implied's core band (50%) and its 80% band edges.
 - [ ] An earnings-week stock: the Fork appears at the first post-earnings expiry, or a clearly widened band if the market is not pricing two outcomes.
 - [ ] A high-IV stock: no crash, right tail visibly fat.

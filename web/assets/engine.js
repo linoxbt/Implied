@@ -19,30 +19,60 @@
 
   function IndicatorError(msg) { this.message = msg; }
 
+  var STYLES = ['line', 'column', 'stacked_column', 'dotted', 'ladder', 'labels_above', 'labels_below', 'area', 'arearange', 'columnrange', 'candles', 'boxplot', 'bubble'];
+
+  // request.options_data_for_all_expirations(ticker, n, ...) returns n strikes
+  // on each side of the price (max 40) for every expiry; mirror that here.
+  function limitStrikes(chain, n, fallbackSpot) {
+    if (!chain || !chain.resultByExpiration) return chain;
+    var S = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice) || fallbackSpot;
+    var k = Math.min(40, Math.max(1, Number(n) || 0)), out = {};
+    Object.keys(chain.resultByExpiration).forEach(function (code) {
+      var byStrike = chain.resultByExpiration[code] || {};
+      var keys = Object.keys(byStrike).filter(function (x) { return Number(x) > 0; }).sort(function (a, b) { return a - b; });
+      var below = keys.filter(function (x) { return Number(x) < S; }).slice(-k), above = keys.filter(function (x) { return Number(x) >= S; }).slice(0, k);
+      out[code] = {};
+      below.concat(above).forEach(function (x) { out[code][x] = byStrike[x]; });
+    });
+    return Object.assign({}, chain, { resultByExpiration: out });
+  }
+
   async function runScript(opts) {
     var code = await loadScript();
     var close = opts.close, time = opts.time, inputs = opts.inputs || {};
-    var BARS = close.length + 400;
-    var out = { name: null, placement: null, inputs: [], projections: [], fills: [], error: null, requests: [] };
+    var out = { name: null, placement: null, inputs: [], projections: [], fills: [], overlays: [], error: null, requests: [] };
     var ids = new Map();
+    function rule(cond, msg) { if (!cond) throw new Error('TrendSpider rule broken: ' + msg); }
+    function declare(kind, label, def, o) { out.inputs.push({ kind: kind, label: label, def: def, opts: o }); return label in inputs ? inputs[label] : def; }
     var g = {
       describe_indicator: function (name, placement) { out.name = name; out.placement = placement; },
       current: { ticker: opts.ticker || 'DEMO', resolution: opts.resolution || 'D' },
-      input: { number: function (label, def, o) { out.inputs.push({ label: label, def: def, opts: o }); return label in inputs ? inputs[label] : def; } },
+      input: {
+        number: function (l, d, o) { return declare('number', l, d, o); },
+        boolean: function (l, d, o) { return declare('boolean', l, d === undefined ? true : d, o); },
+      },
       assert: function (cond, msg) { if (!cond) throw new IndicatorError(msg); },
       request: {
         options_schedule: async function (t) { out.requests.push(['options_schedule', t]); return opts.schedule; },
-        options_data_for_all_expirations: async function () { out.requests.push(['options_data_for_all_expirations'].concat([].slice.call(arguments))); return opts.chain; },
+        options_data_for_all_expirations: async function () {
+          var args = [].slice.call(arguments);
+          out.requests.push(['options_data_for_all_expirations'].concat(args));
+          return limitStrikes(opts.chain, args[1], close[close.length - 1]);
+        },
       },
       close: close, time: time,
-      series_of: function (v) { return new Array(BARS).fill(v); },
+      series_of: function (v) { return new Array(close.length).fill(v); },
       paint_projection: function (series, o) {
+        o = o || {};
+        rule(Array.isArray(series), 'paint_projection needs an array');
+        rule(!o.style || STYLES.indexOf(o.style) >= 0, 'unknown style ' + o.style);
         var id = { i: out.projections.length };
-        out.projections.push(Object.assign({ series: series.slice() }, o || {}));
+        out.projections.push(Object.assign({ series: series.slice(0, 100), length: series.length }, o));
         ids.set(id, out.projections.length - 1);
         return id;
       },
-      fill: function (a, b, color, opacity) { out.fills.push({ a: ids.get(a), b: ids.get(b), color: color, opacity: opacity }); },
+      fill: function (a, b, color, opacity, title) { out.fills.push({ a: ids.get(a), b: ids.get(b), color: color, opacity: opacity, title: title }); },
+      paint_overlay: function (name, params, definition) { out.overlays.push({ name: name, params: params, definition: JSON.parse(JSON.stringify(definition)) }); },
     };
     var names = Object.keys(g);
     var fn = new AsyncFunction(names.join(','), '"use strict";\n' + code);
@@ -163,5 +193,5 @@
     return { Ks: Ks, pdf: pdf.map(function (v) { return v / (a || 1); }) };
   }
 
-  global.Implied = { runScript: runScript, loadScript: loadScript, rng: rng, trueCall: trueCall, expiryQuotes: expiryQuotes, synth: synth, candles: candles, PRESETS: PRESETS, EXPIRY_LADDER: EXPIRY_LADDER, explain: explain, trueDensity: trueDensity };
+  global.Implied = { runScript: runScript, limitStrikes: limitStrikes, loadScript: loadScript, rng: rng, trueCall: trueCall, expiryQuotes: expiryQuotes, synth: synth, candles: candles, PRESETS: PRESETS, EXPIRY_LADDER: EXPIRY_LADDER, explain: explain, trueDensity: trueDensity };
 })(window);

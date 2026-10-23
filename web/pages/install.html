@@ -31,7 +31,7 @@
     <tr><td>Risk-free rate (%)</td><td>4.0</td><td>0–15</td><td class="l">Discounting in the parity and pricing steps</td></tr>
     <tr><td>Max bid-ask spread (fraction of mid)</td><td>0.5</td><td>0.05–2</td><td class="l">Drops stale, illiquid quotes</td></tr>
     <tr><td>Min usable strikes per expiry</td><td>8</td><td>5–60</td><td class="l">Skips expiries too thin to model</td></tr>
-    <tr><td>Show Fork (1 = on, 0 = off)</td><td>1</td><td>0–1</td><td class="l">Hides the Fork marks for a cleaner chart</td></tr>
+    <tr><td>Show Fork</td><td>On</td><td>On / off</td><td class="l">Hides the Fork marks and Fork line in the summary panel</td></tr>
   </tbody></table></div>
 </section>
 
@@ -44,5 +44,5 @@
     <tr><td class="l">Every expiry too thin</td><td class="l">“Not enough liquid strikes on X to build a distribution.”</td></tr>
     <tr><td class="l">Some expiries thin</td><td class="l">Those are skipped; the rest still draw</td></tr>
   </tbody></table></div>
-  <div class="notice warn" style="margin-top:16px"><i></i><span><b>Built and tested against a stand-in for TrendSpider's runtime.</b> A handful of TrendSpider calls are marked VERIFY in the source and listed in the repository's <a href="https://github.com/linoxbt/Implied/blob/main/docs/verify-in-trendspider.md">verification guide</a>. Check those in the editor before relying on it.</span></div>
+  <div class="notice warn" style="margin-top:16px"><i></i><span><b>Checked against TrendSpider's scripting reference, tested against a stand-in for its runtime.</b> Three quick checks remain for the editor itself (projection day units, the summary panel, a real chain); they are in the repository's <a href="https://github.com/linoxbt/Implied/blob/main/docs/verify-in-trendspider.md">verification guide</a>.</span></div>
 </section>

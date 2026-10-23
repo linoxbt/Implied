@@ -19,6 +19,14 @@
     });
   }
 
+  // The text rows of the script's summary overlay, minus its title and footnote.
+  function overlayLines(out) {
+    var o = out.overlays && out.overlays[0];
+    if (!o) return [];
+    return o.definition.rows.map(function (r) { return r.cells[0] && r.cells[0].text; })
+      .filter(function (t) { return t && !/^IMPLIED ·|^Risk-neutral/.test(t); });
+  }
+
   function present(refs, run) {
     var out = run.out;
     if (refs.status) refs.status.textContent = out.error ? 'Script stopped with a message' : 'implied.js ran in ' + out.ms.toFixed(0) + ' ms · ' + out.projections.length + ' series · ' + out.fills.length + ' fills';
@@ -27,13 +35,15 @@
       if (refs.chips) refs.chips.innerHTML = '<span class="chip">' + (out.crash ? 'Script error' : 'On-chart message') + '</span>';
     } else {
       ImpliedCharts.cloud(refs.chart, { close: run.close, time: run.time, out: out, history: run.history || 90 });
-      if (refs.chips) refs.chips.innerHTML = out.projections.filter(function (p) { return !p.hidden; }).map(function (p) {
-        var cls = p.name.indexOf('Fork') === 0 ? ' fork' : '';
-        return '<span class="chip' + cls + '">' + esc(p.name) + '</span>';
+      var lines = overlayLines(out);
+      if (refs.chips) refs.chips.innerHTML = lines.map(function (l) {
+        return '<span class="chip' + (l.indexOf('Fork') === 0 ? ' fork' : '') + '">' + esc(l) + '</span>';
       }).join('');
+      if (out.overlays[0]) ImpliedCharts.overlay(refs.chart, out.overlays[0].definition);
     }
     if (refs.table) {
-      var rows = expiryRows(run.schedule, run.chain, run.settings);
+      // The script only receives 40 strikes per side; count what it actually sees.
+      var rows = expiryRows(run.schedule, Implied.limitStrikes(run.chain, 40, run.close[run.close.length - 1]), run.settings);
       refs.table.innerHTML = '<table class="data"><thead><tr><th>Expiry</th><th>Forward</th><th>Strikes used</th><th>2.5%</th><th>Median</th><th>97.5%</th><th>Skew</th><th class="l">Shape</th></tr></thead><tbody>' +
         rows.map(function (r) {
           if (!r.shape) return '<tr><td>' + r.dte + ' days</td><td>' + (isFinite(r.F) ? fmt(r.F) : '—') + '</td><td>' + r.used + ' of ' + r.total + '</td><td colspan="4" style="text-align:center;color:var(--ink-3)">skipped: too few liquid strikes</td><td class="l">—</td></tr>';

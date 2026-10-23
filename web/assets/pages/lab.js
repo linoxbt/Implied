@@ -29,7 +29,7 @@
     var settings = { expirations: state.count, rate: 4, spread: 0.5, minStrikes: 8 };
     var out = await Implied.runScript({
       ticker: 'LAB', schedule: chainData.schedule, chain: chainData.chain, close: c.close, time: c.time,
-      inputs: { 'Expirations to project': state.count, 'Show Fork (1 = on, 0 = off)': document.getElementById('showFork').checked ? 1 : 0 },
+      inputs: { 'Expirations to project': state.count, 'Show Fork': document.getElementById('showFork').checked },
     });
     if (my !== pending) return;
     last = { ticker: 'LAB', schedule: chainData.schedule, chain: chainData.chain, close: c.close, time: c.time };
