@@ -24,10 +24,17 @@
   }
   function fmtDate(ts) { var d = new Date(ts * 1000); return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear(); }
 
+  // Stops a host's previous chart from redrawing (one resize observer per host).
+  function clear(host) {
+    if (host._ro) { host._ro.disconnect(); host._ro = null; }
+    if (host._onResize) { window.removeEventListener('resize', host._onResize); host._onResize = null; }
+    host.innerHTML = '';
+  }
+
   // Shared frame: sizing, redraw on resize, tooltip element.
   function mount(host, draw, ratio, minH, maxH) {
     host.classList.add('chart');
-    host.innerHTML = '';
+    clear(host);
     var tip = document.createElement('div'); tip.className = 'tip'; host.appendChild(tip);
     var svg = null, last = 0;
     function render() {
@@ -41,8 +48,8 @@
       draw(svg, w, h, tip);
     }
     render();
-    var ro = 'ResizeObserver' in window ? new ResizeObserver(function () { render(); }) : null;
-    if (ro) ro.observe(host); else window.addEventListener('resize', render);
+    if ('ResizeObserver' in window) { host._ro = new ResizeObserver(function () { render(); }); host._ro.observe(host); }
+    else { host._onResize = render; window.addEventListener('resize', render); }
     return { redraw: function () { last = 0; render(); } };
   }
   function showTip(tip, host, x, y, html, w) {
@@ -323,5 +330,5 @@
     host.appendChild(box);
   }
 
-  global.ImpliedCharts = { overlay: overlay, cloud: cloud, density: densityChart, smile: smileChart, quotes: quotesChart, fmtPrice: fmtPrice, QLABEL: QLABEL };
+  global.ImpliedCharts = { overlay: overlay, clear: clear, cloud: cloud, density: densityChart, smile: smileChart, quotes: quotesChart, fmtPrice: fmtPrice, QLABEL: QLABEL };
 })(window);

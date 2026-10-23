@@ -1,13 +1,28 @@
 # Project website: built from the indicator's own output (see tools/site.js).
+# The build runs the full test suite first, so a failing check never deploys.
 [build]
-  command = "npm run site"
+  command = "npm run check && npm run site"
   publish = "public"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "22"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # 'unsafe-eval': the pages run implied.js in the browser (AsyncFunction), as TrendSpider does.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
 [[headers]]
   for = "/implied.js"
   [headers.values]
     Content-Type = "text/javascript; charset=utf-8"
     Cache-Control = "public, max-age=300"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"

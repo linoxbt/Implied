@@ -5,8 +5,8 @@
   <p>shape a market. the real script repaints it.</p>
 </section>
 
-<section class="wrap grid-app">
-  <form class="panel" id="controls" onsubmit="return false" aria-label="Market settings">
+<section class="wrap grid-app results-first">
+  <form class="panel" id="controls" aria-label="Market settings">
     <h2>Market</h2>
     <div class="seg" role="group" aria-label="Preset">
       <button type="button" data-preset="index" aria-pressed="true">Index</button>
@@ -30,8 +30,8 @@
 
   <div class="stack">
     <div class="dark-card">
-      <div class="chart-host" id="chart" aria-live="polite"></div>
-      <div class="chart-bar"><div class="chips" id="chips"></div><span class="mono" id="status">Loading implied.js…</span></div>
+      <div class="chart-host" id="chart"></div>
+      <div class="chart-bar"><div class="chips" id="chips"></div><span class="mono" id="status" role="status">Loading implied.js…</span></div>
     </div>
     <div class="table-wrap" id="table"></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">

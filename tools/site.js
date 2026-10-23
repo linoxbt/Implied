@@ -12,6 +12,8 @@ const web = path.join(root, 'web');
 const out = path.join(root, 'public');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const REPO = 'https://github.com/linoxbt/Implied';
+const SITE = 'https://implied.netlify.app';
+const { coreForBrowser } = require('./build.js');
 
 const NAV = [
   { slug: '', name: 'Home', blurb: 'What Implied is, with a live chart' },
@@ -43,7 +45,7 @@ function layout(meta, body, version) {
   const order = ['core', 'engine', 'charts', 'results'];
   const sorted = scripts.filter(s => s !== 'app').sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
   return `<!doctype html>
-<html lang="en">
+<html lang="en" data-v="${version}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -51,7 +53,11 @@ function layout(meta, body, version) {
 <meta name="description" content="${esc(meta.description)}">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(meta.description)}">
-<meta property="og:image" content="/assets/og.png">
+<meta property="og:image" content="${SITE}/assets/og.png">
+<meta property="og:url" content="${SITE}/${slug ? slug + '/' : ''}">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="${SITE}/${slug ? slug + '/' : ''}">
 <meta name="theme-color" content="#f4f4f2">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/assets/icon-180.png">
@@ -106,9 +112,16 @@ function main() {
   copyDir(path.join(web, 'assets'), path.join(out, 'assets'));
   const script = fs.readFileSync(path.join(root, 'dist/implied.js'), 'utf8');
   fs.writeFileSync(path.join(out, 'implied.js'), script);
-  const core = fs.readFileSync(path.join(root, 'src/core.js'), 'utf8').replace(/\/\/ @node-only-start[\s\S]*?\/\/ @node-only-end\n?/, '');
-  fs.writeFileSync(path.join(out, 'assets/core.js'), core);
-  const version = require('crypto').createHash('sha1').update(script + fs.readdirSync(path.join(web, 'assets')).join()).digest('hex').slice(0, 8);
+  fs.writeFileSync(path.join(out, 'assets/core.js'), coreForBrowser());
+  // Cache-busting version: a hash of every file the pages load.
+  const hash = require('crypto').createHash('sha1');
+  (function add(dir) {
+    for (const f of fs.readdirSync(dir).sort()) {
+      const p = path.join(dir, f);
+      if (fs.statSync(p).isDirectory()) add(p); else hash.update(f).update(fs.readFileSync(p));
+    }
+  })(out);
+  const version = hash.digest('hex').slice(0, 10);
 
   const pages = fs.readdirSync(path.join(web, 'pages')).filter(f => f.endsWith('.html'));
   for (const f of pages) {

@@ -5,17 +5,25 @@
   var fmt = function (v) { return ImpliedCharts.fmtPrice(v); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
-  // Per-expiry numbers, computed with the same core functions and settings the script uses.
-  function expiryRows(schedule, chain, settings) {
-    var S = Number(chain && chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
-    var rows = (schedule || []).filter(function (e) { return e && e.expiration && e.expiration.dte >= 1; })
-      .sort(function (a, b) { return a.expiration.dte - b.expiration.dte; }).slice(0, settings.expirations);
-    return rows.map(function (e) {
-      var byStrike = chain.resultByExpiration && chain.resultByExpiration[e.expiration.code], T = e.expiration.dte / 365;
-      var clean = byStrike ? cleanExpiry(byStrike, S, T, settings.rate / 100, settings.spread) : { pts: [], F: NaN };
-      var shape = null;
-      try { shape = byStrike ? modelExpiry(byStrike, S, T, settings.rate / 100, settings.spread, settings.minStrikes) : null; } catch (err) { shape = null; }
-      return { dte: e.expiration.dte, code: e.expiration.code, F: clean.F, used: clean.pts.length, total: byStrike ? Object.keys(byStrike).length : 0, shape: shape };
+  // Per-expiry numbers: the expiries the script picked, from the same core
+  // selection step and settings, on the chart's footing (scaled to the last close).
+  function expiryRows(run) {
+    var settings = run.settings, close = run.close[run.close.length - 1];
+    var chain = Implied.limitStrikes(run.chain, 40, close); // the script only receives 40 strikes per side
+    var quoted = Number(chain && chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
+    var spot = quoted > 0 ? quoted : close, t = Number(run.time[run.time.length - 1]);
+    var sel = selectExpiries({
+      schedule: run.schedule, resultByExpiration: chain && chain.resultByExpiration, spot: spot, lastTime: t > 1e12 ? t / 1000 : t,
+      rate: settings.rate / 100, maxSpread: settings.spread, minStrikes: settings.minStrikes, count: settings.expirations,
+      maxBars: Implied.MAX_PROJECTION, mode: 'calendar',
+    });
+    var k = close / spot;
+    return sel.shapes.map(function (s) {
+      return {
+        day: s.day, F: s.F * k, used: s.strikes.length, total: Object.keys(chain.resultByExpiration[s.key] || {}).length,
+        q: s.q.map(function (v) { return v * k; }), skew: s.skew,
+        fork: settings.showFork !== false && s.fork ? { low: s.fork.low * k, high: s.fork.high * k, valley: s.fork.valley * k } : null,
+      };
     });
   }
 
@@ -31,6 +39,7 @@
     var out = run.out;
     if (refs.status) refs.status.textContent = out.error ? 'Script stopped with a message' : 'implied.js ran in ' + out.ms.toFixed(0) + ' ms · ' + out.projections.length + ' series · ' + out.fills.length + ' fills';
     if (out.error) {
+      ImpliedCharts.clear(refs.chart);
       refs.chart.innerHTML = '<div class="on-chart-msg"><span>' + esc(out.error) + '<small>This is the message the indicator shows on the chart.</small></span></div>';
       if (refs.chips) refs.chips.innerHTML = '<span class="chip">' + (out.crash ? 'Script error' : 'On-chart message') + '</span>';
     } else {
@@ -42,14 +51,12 @@
       if (out.overlays[0]) ImpliedCharts.overlay(refs.chart, out.overlays[0].definition);
     }
     if (refs.table) {
-      // The script only receives 40 strikes per side; count what it actually sees.
-      var rows = expiryRows(run.schedule, Implied.limitStrikes(run.chain, 40, run.close[run.close.length - 1]), run.settings);
-      refs.table.innerHTML = '<table class="data"><thead><tr><th>Expiry</th><th>Forward</th><th>Strikes used</th><th>2.5%</th><th>Median</th><th>97.5%</th><th>Skew</th><th class="l">Shape</th></tr></thead><tbody>' +
+      var rows = out.error ? [] : expiryRows(run);
+      refs.table.innerHTML = !rows.length ? '' : '<table class="data"><thead><tr><th>expiry</th><th>forward</th><th>strikes used</th><th>2.5%</th><th>median</th><th>97.5%</th><th>skew</th><th class="l">shape</th></tr></thead><tbody>' +
         rows.map(function (r) {
-          if (!r.shape) return '<tr><td>' + r.dte + ' days</td><td>' + (isFinite(r.F) ? fmt(r.F) : '—') + '</td><td>' + r.used + ' of ' + r.total + '</td><td colspan="4" style="text-align:center;color:var(--ink-3)">skipped: too few liquid strikes</td><td class="l">—</td></tr>';
-          var s = r.shape, tag = skewTag(s.skew);
-          return '<tr><td>' + r.dte + ' days</td><td>' + fmt(r.F) + '</td><td>' + r.used + ' of ' + r.total + '</td><td>' + fmt(s.q[0]) + '</td><td>' + fmt(s.q[3]) + '</td><td>' + fmt(s.q[6]) + '</td><td>' + s.skew.toFixed(2) + '</td><td class="l">' +
-            (s.fork ? '<span class="tag-fork">' + esc(forkLabel(s.fork)) + '</span>' : esc(tag || 'Close to symmetric')) + '</td></tr>';
+          var tag = skewTag(r.skew);
+          return '<tr><td>' + r.day + ' days</td><td>' + fmt(r.F) + '</td><td>' + r.used + ' of ' + r.total + '</td><td>' + fmt(r.q[0]) + '</td><td>' + fmt(r.q[3]) + '</td><td>' + fmt(r.q[6]) + '</td><td>' + r.skew.toFixed(2) + '</td><td class="l">' +
+            (r.fork ? '<span class="tag-fork">' + esc(forkLabel(r.fork)) + '</span>' : esc(tag || 'close to symmetric')) + '</td></tr>';
         }).join('') + '</tbody></table>';
     }
   }

@@ -5,8 +5,8 @@
   <p>when the market prices two outcomes.</p>
 </section>
 
-<section class="wrap grid-app">
-  <form class="panel" onsubmit="return false" aria-label="Two-outcome market">
+<section class="wrap grid-app results-first">
+  <form class="panel" aria-label="Two-outcome market">
     <h2>The event</h2>
     <div class="field"><label for="move">Move the market prices <output data-for="move"></output></label><input type="range" id="move" min="0" max="15" step="0.5" value="8"></div>
     <div class="field"><label for="vol">Volatility around each outcome <output data-for="vol"></output></label><input type="range" id="vol" min="8" max="60" step="1" value="20"></div>
@@ -17,10 +17,10 @@
   </form>
 
   <div class="stack">
-    <div class="panel" id="verdict" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"></div>
+    <div class="panel" id="verdict" aria-live="polite" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"></div>
     <div class="dark-card">
       <div class="chart-host" id="chart"></div>
-      <div class="chart-bar"><div class="chips"><span class="chip">Filled: what Implied recovers from the quotes</span><span class="chip">Dashed: the true distribution</span></div><span class="mono" id="status"></span></div>
+      <div class="chart-bar"><div class="chips"><span class="chip">Filled: what Implied recovers from the quotes</span><span class="chip">Dashed: the true distribution</span></div><span class="mono" id="status" role="status"></span></div>
     </div>
     <div class="panel">
       <h3>The three rules</h3>

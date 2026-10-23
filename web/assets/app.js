@@ -27,6 +27,8 @@
     });
   }
 
+  document.querySelectorAll('form').forEach(function (f) { f.addEventListener('submit', function (e) { e.preventDefault(); }); });
+
   // Header border on scroll
   var top = document.querySelector('.top');
   function onScroll() { if (top) top.classList.toggle('scrolled', window.scrollY > 8); }
@@ -38,7 +40,7 @@
 
   // Copy the script
   function copyScript() {
-    return fetch('/implied.js').then(function (r) { if (!r.ok) throw 0; return r.text(); })
+    return fetch('/implied.js?v=' + (document.documentElement.getAttribute('data-v') || '')).then(function (r) { if (!r.ok) throw 0; return r.text(); })
       .then(function (t) { return navigator.clipboard.writeText(t); })
       .then(function () { say('Copied. Paste it into the TrendSpider editor.'); })
       .catch(function () { say('Copy failed. Use the download link instead.'); });

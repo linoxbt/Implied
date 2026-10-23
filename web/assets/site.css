@@ -1,6 +1,6 @@
 /* Implied — shared styles for every page. */
 :root{
-  --paper:#f4f4f2; --card:#ffffff; --ink:#0a0a0a; --ink-2:#55585f; --ink-3:rgba(10,10,10,.45); --line:rgba(10,10,10,.11);
+  --paper:#f4f4f2; --card:#ffffff; --ink:#0a0a0a; --ink-2:#55585f; --ink-3:rgba(10,10,10,.62); --line:rgba(10,10,10,.11);
   --night:#0a0a0a; --night-2:#15171c; --night-3:#1d2027; --night-line:rgba(255,255,255,.11); --night-mute:#8d919b;
   --chart:#0f1218;
   --band:#5b8def; --fork:#ffb347; --valley:#7d8296; --median:#9aa0b4; --ok:#22c55e; --bad:#ef4444;
@@ -394,3 +394,11 @@ table.data{font-size:13px}
 .status{font-size:12px;margin-bottom:24px}
 button,.pill,.seg button,.tabs button{text-transform:lowercase}
 table.data th{text-transform:lowercase;letter-spacing:.04em}
+/* Accessibility and exact-text exceptions */
+.sr:focus{position:fixed;top:10px;left:10px;width:auto;height:auto;clip:auto;z-index:200;padding:10px 14px;background:var(--ink);color:#fff;border-radius:10px;text-decoration:none}
+.on-chart-msg span,.ov,.tk{text-transform:none}
+input[type=range]:disabled{opacity:.4;cursor:not-allowed}
+.field:has(input:disabled) label{opacity:.55}
+@media (max-width:999px){.grid-app.results-first>.stack{order:-1}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+#snippet{white-space:pre-wrap;word-break:break-word;padding-top:52px}

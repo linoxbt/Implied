@@ -52,67 +52,16 @@ const SCALE = lastClose / SPOT;
 const lastTimeRaw = Number(time[time.length - 1]);
 const lastTime = lastTimeRaw > 1e12 ? lastTimeRaw / 1000 : lastTimeRaw; // seconds
 
-// ---------- Match expirations to the chain ----------
-// The schedule's codes (YYYYMMDD in TrendSpider's docs) and the chain's keys
-// (YYMMDD) are compared on a normalized YYMMDD key; the expiration's
-// year/month/day is a second way to build that key.
-const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
-const chainByKey = {};
-for (const key of Object.keys(chain.resultByExpiration)) chainByKey[expiryKey(key)] = chain.resultByExpiration[key];
-function chainFor(x) {
-  const byCode = chainByKey[expiryKey(x.code)];
-  if (byCode) return byCode;
-  const m = MONTHS[String(x.month || '').slice(0, 3).toLowerCase()] || Number(x.month);
-  if (!(x.year > 0 && m > 0 && x.day > 0)) return null;
-  const pad = v => String(v).padStart(2, '0');
-  return chainByKey[pad(x.year % 100) + pad(m) + pad(x.day)] || null;
-}
-// Calendar days from the last candle to an expiry: from its timestamp when
-// given, so weekends and holidays between the last bar and today don't shift
-// the cloud; otherwise its days-to-expiry.
-function daysOut(x) {
-  const ts = Number(x.timestamp);
-  if (ts > 0 && lastTime > 0) {
-    const d = Math.round((ts - lastTime) / 86400);
-    if (d >= 1) return d;
-  }
-  return Number(x.dte);
-}
-
-const horizon = projectionTimeline(PROJECTION_DAYS, lastTime, 400);
-const candidates = schedule
-  .filter(e => e && e.expiration && Number(e.expiration.dte) >= 1)
-  .map(e => ({ x: e.expiration, byStrike: chainFor(e.expiration), day: daysOut(e.expiration) }))
-  .filter(c => c.byStrike && c.day >= 1 && horizon.barOfDay[c.day] < MAX_PROJECTION)
-  .sort((a, b) => a.day - b.day);
+// ---------- Pick expiries and model them ----------
+// Expiries are matched to the chain on a normalized YYMMDD key and placed by
+// their own timestamp; for each target horizon the nearest expiry that models
+// cleanly is kept (see selectExpiries in core). A ticker with an expiry every
+// weekday still gets a cloud that reaches weeks out.
+const { candidates, shapes: expiryShapes } = selectExpiries({
+  schedule, resultByExpiration: chain.resultByExpiration, spot: SPOT, lastTime, rate: RATE,
+  maxSpread: MAX_SPREAD, minStrikes: MIN_STRIKES, count: EXPIRIES, maxBars: MAX_PROJECTION, mode: PROJECTION_DAYS,
+});
 assert(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + ' days.');
-
-// ---------- Model: pick expiries by horizon ----------
-// For each target horizon, model the nearest expiry; if it is too thin, try
-// its neighbours. A ticker with an expiry every weekday still gets a cloud
-// that reaches weeks out.
-const modelled = new Map();
-function shapeOf(i) {
-  if (!modelled.has(i)) {
-    const c = candidates[i], dte = Number(c.x.dte);
-    let shape = null;
-    try {
-      shape = modelExpiry(c.byStrike, SPOT, dte / 365, RATE, MAX_SPREAD, MIN_STRIKES);
-    } catch (err) {
-      shape = null; // a bad expiry is skipped; another one takes its place
-    }
-    modelled.set(i, shape && shape.q.every(Number.isFinite) ? Object.assign({ dte, day: c.day }, shape) : null);
-  }
-  return modelled.get(i);
-}
-const chosen = new Set();
-for (const order of expiryPlan(candidates.map(c => c.day), EXPIRIES)) {
-  for (const i of order.slice(0, 4)) {
-    if (chosen.has(i)) continue;
-    if (shapeOf(i)) { chosen.add(i); break; }
-  }
-}
-const expiryShapes = [...chosen].map(i => modelled.get(i)).sort((a, b) => a.day - b.day);
 assert(expiryShapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
 
 // ---------- Project ----------

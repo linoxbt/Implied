@@ -26,7 +26,7 @@
     var my = ++pending;
     var chainData = Implied.synth(state);
     var c = Implied.candles(state.S, 260, state.seed + 2);
-    var settings = { expirations: state.count, rate: 4, spread: 0.5, minStrikes: 8 };
+    var settings = { expirations: state.count, rate: 4, spread: 0.5, minStrikes: 8, showFork: document.getElementById('showFork').checked };
     var out = await Implied.runScript({
       ticker: 'LAB', schedule: chainData.schedule, chain: chainData.chain, close: c.close, time: c.time,
       inputs: { 'Expirations to project': state.count, 'Show Fork': document.getElementById('showFork').checked },

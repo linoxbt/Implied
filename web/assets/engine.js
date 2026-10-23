@@ -109,7 +109,13 @@
       return r.text();
     }).then(function (t) { scriptText = t; return t; });
   }
-  async function runScript(opts) { return runCode(await loadScript(), opts); }
+  async function runScript(opts) {
+    var code;
+    try { code = await loadScript(); } catch (e) {
+      return { error: 'Could not load implied.js. Check your connection and try again.', crash: true, projections: [], fills: [], overlays: [], inputs: [], requests: [], ms: 0 };
+    }
+    return runCode(code, opts);
+  }
 
   // ---------- Synthetic chains ----------
   function rng(seed) {

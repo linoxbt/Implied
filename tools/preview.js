@@ -1,5 +1,5 @@
 // Renders what dist/implied.js paints for each synthetic scenario into
-// preview/index.html (dark and light chart themes), drawn from the mock
+// preview/index.html and docs/img/ (dark and light chart themes), drawn from the mock
 // runtime's recorded paint calls, so the visual design can be checked
 // without TrendSpider. Usage: npm run preview
 'use strict';
@@ -64,7 +64,9 @@ function chartSvg(name, out, close, theme) {
 
 async function main() {
   const dir = path.join(__dirname, '../preview');
+  const docs = path.join(__dirname, '../docs/img');
   fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(docs, { recursive: true });
   const blocks = [];
   for (const name of ['SPY', 'EARN', 'MEME']) {
     const { schedule, chain } = fx.SCENARIOS[name]();
@@ -74,6 +76,7 @@ async function main() {
     for (const theme of ['dark', 'light']) {
       const svg = chartSvg(name, out, c.close, theme);
       fs.writeFileSync(path.join(dir, `${name}-${theme}.svg`), svg);
+      fs.writeFileSync(path.join(docs, `${name}-${theme}.svg`), svg); // README images
       blocks.push(`<figure><figcaption>${name} · ${theme}</figcaption>${svg}</figure>`);
     }
   }

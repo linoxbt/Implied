@@ -9,8 +9,8 @@
   <div class="stack">
     <div class="panel">
       <h2>1 · Get your chain</h2>
-      <div class="code" id="snippet">console.log(JSON.stringify({ ticker: current.ticker, schedule, chain }));<button class="pill sm dark" data-copy-text="#snippet-text">Copy</button></div>
-      <span id="snippet-text" class="sr">console.log(JSON.stringify({ ticker: current.ticker, schedule, chain }));</span>
+      <div class="code" id="snippet">console.log(JSON.stringify({ ticker: current.ticker, schedule, chain, close: close.slice(-260), time: time.slice(-260) }));<button class="pill sm dark" data-copy-text="#snippet-text">Copy</button></div>
+      <span id="snippet-text" class="sr">console.log(JSON.stringify({ ticker: current.ticker, schedule, chain, close: close.slice(-260), time: time.slice(-260) }));</span>
     </div>
     <div class="panel">
       <h2>2 · Load it</h2>
@@ -34,10 +34,10 @@
   </div>
 
   <div class="stack">
-    <div id="notice" class="notice"><i></i><span>Load a chain to begin, or try the example.</span></div>
+    <div id="notice" class="notice" role="status" aria-live="polite"><i></i><span>Load a chain to begin, or try the example.</span></div>
     <div class="dark-card">
       <div class="chart-host" id="chart"><div class="on-chart-msg"><span>Your chart appears here.</span></div></div>
-      <div class="chart-bar"><div class="chips" id="chips"></div><span class="mono" id="status"></span></div>
+      <div class="chart-bar"><div class="chips" id="chips"></div><span class="mono" id="status" role="status"></span></div>
     </div>
     <div class="table-wrap" id="table"></div>
   </div>

@@ -546,6 +546,67 @@ function expiryPlan(days, count) {
     .sort((x, y) => x.dist - y.dist || x.d - y.d).map(x => x.i));
 }
 
+// The indicator's whole selection step, in one place so the website's
+// per-expiry table shows exactly what the script modelled.
+//   o: { schedule, resultByExpiration, spot, lastTime (s), rate, maxSpread,
+//        minStrikes, count, maxBars, mode }
+// Returns { candidates: [{ x, byStrike, day }], shapes: [shape + { dte, day, key }] }.
+// `day` is calendar days from the last candle: from the expiry's timestamp
+// when given, so weekends and holidays between the last bar and today don't
+// shift the cloud; otherwise its days-to-expiry.
+const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+function selectExpiries(o) {
+  const chainByKey = {};
+  for (const key of Object.keys(o.resultByExpiration || {})) chainByKey[expiryKey(key)] = o.resultByExpiration[key];
+  const pad = v => String(v).padStart(2, '0');
+  const keyOf = x => {
+    if (chainByKey[expiryKey(x.code)]) return expiryKey(x.code);
+    const m = MONTHS[String(x.month || '').slice(0, 3).toLowerCase()] || Number(x.month);
+    return x.year > 0 && m > 0 && x.day > 0 ? pad(x.year % 100) + pad(m) + pad(x.day) : null;
+  };
+  const daysOut = x => {
+    const ts = Number(x.timestamp);
+    if (ts > 0 && o.lastTime > 0) {
+      const d = Math.round((ts - o.lastTime) / 86400);
+      if (d >= 1) return d;
+    }
+    return Number(x.dte);
+  };
+  const horizon = projectionTimeline(o.mode, o.lastTime, 400);
+  const candidates = (o.schedule || [])
+    .filter(e => e && e.expiration && Number(e.expiration.dte) >= 1)
+    .map(e => { const key = keyOf(e.expiration); return { x: e.expiration, key, byStrike: key ? chainByKey[key] : null, day: daysOut(e.expiration) }; })
+    .filter(c => c.byStrike && c.day >= 1 && horizon.barOfDay[c.day] < o.maxBars)
+    .sort((a, b) => a.day - b.day);
+  // For each target horizon, model the nearest expiry; if it is too thin,
+  // try its neighbours (up to four).
+  const modelled = new Map();
+  const shapeOf = i => {
+    if (!modelled.has(i)) {
+      const c = candidates[i], dte = Number(c.x.dte);
+      let shape = null;
+      try {
+        shape = modelExpiry(c.byStrike, o.spot, dte / 365, o.rate, o.maxSpread, o.minStrikes);
+      } catch (err) {
+        shape = null; // a bad expiry is skipped; another one takes its place
+      }
+      modelled.set(i, shape && shape.q.every(Number.isFinite) ? Object.assign({ dte, day: c.day, key: c.key }, shape) : null);
+    }
+    return modelled.get(i);
+  };
+  const chosen = new Set();
+  if (candidates.length) {
+    for (const order of expiryPlan(candidates.map(c => c.day), o.count)) {
+      for (const i of order.slice(0, 4)) {
+        if (chosen.has(i)) continue;
+        if (shapeOf(i)) { chosen.add(i); break; }
+      }
+    }
+  }
+  const shapes = [...chosen].map(i => modelled.get(i)).sort((a, b) => a.day - b.day);
+  return { candidates, shapes };
+}
+
 // ---------- Labels ----------
 
 function formatPrice(p) {
@@ -569,7 +630,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     QS, normPdf, normCdf, black76Call, vega76, impliedVol, naturalSpline, pentaCholesky,
     quoteMid, median, cleanExpiry, fitSmile, density, quantile, cdfAt, fork, forkDiagnostics, describeShape,
-    fitExpiry, modelExpiry, projectionTimeline, projectQuantiles, expiryKey, expiryPlan, formatPrice, forkLabel, skewTag,
+    fitExpiry, modelExpiry, projectionTimeline, projectQuantiles, expiryKey, expiryPlan, selectExpiries, formatPrice, forkLabel, skewTag,
     FORK_HEIGHT, FORK_SEPARATION, FORK_VALLEY, MAX_MASS_ERROR, MAX_ARBITRAGE, HORIZONS,
   };
 }

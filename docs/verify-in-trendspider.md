@@ -24,7 +24,7 @@ Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider'
 3. **A real chain.** Add this line right after the requests, run on SPY, and copy the console output into `chains/SPY-<date>.json`:
 
    ```js
-   console.log(JSON.stringify({ ticker: current.ticker, schedule, chain }));
+   console.log(JSON.stringify({ ticker: current.ticker, schedule, chain, close: close.slice(-260), time: time.slice(-260) }));
    ```
 
    Then run `node tools/replay.js chains/SPY-<date>.json` (or drop it on the site's Analyze page). Every file in `chains/` is also replayed by `npm test`. Save one earnings-week stock too, and remove the line before publishing.
