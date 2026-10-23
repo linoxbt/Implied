@@ -83,4 +83,6 @@ ${blocks.join('\n')}`);
   console.log('wrote preview/index.html and ' + blocks.length + ' SVGs');
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+module.exports = { chartSvg, THEMES };
+
+if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });

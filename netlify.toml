@@ -1,0 +1,13 @@
+# Project website: built from the indicator's own output (see tools/site.js).
+[build]
+  command = "npm run site"
+  publish = "public"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[headers]]
+  for = "/implied.js"
+  [headers.values]
+    Content-Type = "text/javascript; charset=utf-8"
+    Cache-Control = "public, max-age=300"

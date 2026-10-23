@@ -8,7 +8,10 @@
     "build": "node tools/build.js",
     "test": "node tools/build.js && node --test test/*.test.js",
     "check": "node tools/build.js --check && node --test test/*.test.js",
-    "preview": "node tools/build.js && node tools/preview.js"
+    "preview": "node tools/build.js && node tools/preview.js",
+    "site": "node tools/build.js && node tools/site.js"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  }
 }
