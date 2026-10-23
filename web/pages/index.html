@@ -25,24 +25,75 @@
   <p class="muted" style="font-size:13.5px;margin:10px 4px 0">Simulated option chain, real script. Hover the cloud to read every band on any future day.</p>
 </section>
 
-<section class="wrap section">
-  <h2 class="display title">What it does</h2>
-  <p class="sub">Every feature has its own page. Each one runs the real code.</p>
-  <div class="features">
-    <a class="feature f-lime reveal" href="/lab/"><span class="go">↗</span><span class="n">01 · Lab</span><div><h3>Shape a market</h3><p>Sliders for volatility, skew, an earnings jump and spreads. The script repaints as you move them.</p></div></a>
-    <a class="feature f-pink reveal" href="/fork/"><span class="go">↗</span><span class="n">02 · The Fork</span><div><h3>Two outcomes</h3><p>Watch the detector decide when the market is pricing a split, rule by rule.</p></div></a>
-    <a class="feature f-blue reveal" href="/analyze/"><span class="go">↗</span><span class="n">03 · Analyze</span><div><h3>Your chain</h3><p>Drop a chain saved from TrendSpider and see what Implied would paint on it.</p></div></a>
-    <a class="feature f-orange reveal" href="/how-it-works/"><span class="go">↗</span><span class="n">04 · How it works</span><div><h3>Step by step</h3><p>Quotes, implied volatility, the smile, the density, the cloud: one chain, five live charts.</p></div></a>
-    <a class="feature f-ink reveal" href="/validation/"><span class="go">↗</span><span class="n">05 · Validation</span><div><h3>Prove it</h3><p>Run the accuracy checks in your browser: Fork hit rate, false alarms, density error.</p></div></a>
-    <a class="feature f-paper reveal" href="/install/"><span class="go">↗</span><span class="n">06 · Install</span><div><h3>One minute</h3><p>Copy one file into TrendSpider's editor and add it to a Daily chart.</p></div></a>
+<section class="wrap quote" aria-label="Why Implied">
+  <aside class="reveal"><b>1 → 241</b><span>one straddle number, versus a 241-point density per expiry</span></aside>
+  <div>
+    <p class="big" data-words>“Every expected-move tool assumes a bell curve. Implied shows the real shape of the bet: skewed, fat-tailed, and sometimes split in two.”</p>
+    <div class="cite"><img src="/assets/logo-mark.svg" alt=""><div><b>Implied</b><br>Most Unique Options Indicator · 2026 TrendSpider Hackathon</div></div>
   </div>
 </section>
 
-<section class="wrap section">
-  <div class="stats reveal">
-    <div class="stat"><b>95/96</b><span>two-outcome chains where the Fork was found</span></div>
-    <div class="stat"><b>0/2,250</b><span>false Forks on one-outcome chains</span></div>
-    <div class="stat"><b>&lt;1 pt</b><span>probability error per band, 7–90 days</span></div>
-    <div class="stat"><b>~0.2 s</b><span>to model and paint 8 expiries</span></div>
+<div class="night">
+  <section class="wrap about">
+    <div class="mono">What it is</div>
+    <div>
+      <p class="big" data-words>Implied reads the live options chain and paints the probability distribution the market is pricing, out to every expiry. Not one number drawn as a symmetric cone, but the full density from every liquid strike: lopsided when the market is, and split in two when it is betting on two outcomes.</p>
+      <div class="facts">
+        <span>One file, pasted into TrendSpider</span><span>Runs on any ticker with listed options</span>
+        <span>No server, no API key</span><span>Free and open source</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="process" id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <div class="mono reveal" style="color:var(--night-mute)">How it works</div>
+      <h2 class="process-title reveal" id="how-title">Four pages,<br>one flow</h2>
+    </div>
+    <div class="rope-stage">
+      <svg class="rope" aria-hidden="true"><path id="rope-path" d=""/></svg>
+      <ol class="rope-row wrap">
+        <li class="hang h1"><a href="/lab/"><span class="n">01</span><span class="pin st-red">Live in your browser</span><div><h3>Lab</h3><p>Shape a market with sliders. The real script repaints as you drag.</p></div></a></li>
+        <li class="hang h2"><a href="/fork/"><span class="n">02</span><div><h3>The Fork</h3><p>Build a two-outcome market and watch the detector decide.</p></div></a></li>
+        <li class="hang h3"><a href="/analyze/"><span class="n">03</span><svg class="spark" viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="spk" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e9ff7a"/><stop offset="1" stop-color="#43d17a"/></linearGradient></defs><path d="M20 0C21.5 12 28 18.5 40 20 28 21.5 21.5 28 20 40 18.5 28 12 21.5 0 20 12 18.5 18.5 12 20 0Z" fill="url(#spk)"/></svg><div><h3>Analyze</h3><p>Drop a chain saved from TrendSpider; see what Implied would paint.</p></div></a></li>
+        <li class="hang h4"><a href="/how-it-works/"><span class="n">04</span><span class="pin st-blue">Step by step</span><div><h3>How it works</h3><p>Quotes, volatility, smile, density, cloud: five live charts.</p></div></a></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="wrap plans" id="get" aria-labelledby="plans-title">
+    <header class="reveal"><div class="mono">Get it</div><h2 id="plans-title">One file,<br>no surprises</h2></header>
+    <div class="plan-cards">
+      <div class="plan reveal">
+        <h3 class="display">Validation</h3>
+        <div class="price">0/2,250</div><small>false Forks in testing</small>
+        <p class="desc">Run the accuracy checks yourself, in the browser, on about 350 simulated chains.</p>
+        <ul><li>95/96 two-outcome markets caught</li><li>Under 1 point of probability error</li><li>Every on-chart message checked</li><li>About 0.2 s for 8 expiries</li></ul>
+        <a class="pill light" href="/validation/">Run the checks <span class="arr">↗</span></a>
+      </div>
+      <div class="plan hot reveal">
+        <div class="ph"><h3 class="display">Implied</h3><span class="lime-pill">Free forever</span></div>
+        <div class="price">$0</div><small>open source, Apache-2.0</small>
+        <p class="desc">The full distribution from every liquid strike, out to each expiry.</p>
+        <ul><li>Skew you can see, in words too</li><li>Fat tails where the market pays for them</li><li>The Fork: two outcomes, flagged</li><li>Clear messages, never a broken chart</li></ul>
+        <button class="pill solid" data-copy>Copy the script <span class="arr">↗</span></button>
+      </div>
+      <div class="plan reveal">
+        <h3 class="display">Install</h3>
+        <div class="price">~1 min</div><small>to set up</small>
+        <p class="desc">No server, no API key. TrendSpider hosts the code, the data and the runtime.</p>
+        <ul><li>Open the Custom JS indicator editor</li><li>Paste the script and save</li><li>Add it to a Daily chart with options</li><li>Needs TrendSpider's OPRA data</li></ul>
+        <a class="pill light" href="/install/">Install guide <span class="arr">↗</span></a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="hello" aria-label="Get the script">
+  <div class="wrap" style="position:relative">
+    <span class="sticker st-red h-s1" aria-hidden="true">Takes about a minute</span>
+    <span class="bubble" aria-hidden="true">copy!</span>
+    <h2 class="display">Paste it in</h2>
+    <span class="sticker st-lime h-s2" aria-hidden="true">Open source · Apache-2.0</span>
   </div>
 </section>

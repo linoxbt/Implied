@@ -79,3 +79,26 @@
 
   global.ImpliedUI = { say: say, paintRange: paintRange, copyScript: copyScript };
 })(window);
+
+// Words that fill in as you scroll ([data-words]), DOVV-style.
+(function () {
+  'use strict';
+  var blocks = [].slice.call(document.querySelectorAll('[data-words]'));
+  if (!blocks.length) return;
+  blocks.forEach(function (b) {
+    b.innerHTML = b.textContent.trim().split(/\s+/).map(function (w) { return '<span class="w">' + w.replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }) + '</span>'; }).join(' ');
+  });
+  var ticking = false;
+  function frame() {
+    ticking = false;
+    var vh = window.innerHeight;
+    blocks.forEach(function (b) {
+      var r = b.getBoundingClientRect();
+      var p = Math.min(1, Math.max(0, (vh * 0.85 - r.top) / (r.height + vh * 0.35)));
+      var ws = b.querySelectorAll('.w'), n = Math.round(p * ws.length);
+      for (var i = 0; i < ws.length; i++) ws[i].classList.toggle('on', i < n);
+    });
+  }
+  function on() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
+  window.addEventListener('scroll', on, { passive: true }); window.addEventListener('resize', on); frame();
+})();
