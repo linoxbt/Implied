@@ -1,0 +1,47 @@
+<!--{"slug":"analyze","title":"Analyze a chain","description":"Paste or drop an options chain saved from TrendSpider and see what Implied would paint: bands, skew and the Fork. Runs in your browser.","scripts":["core","engine","charts","results","pages/analyze"]}-->
+<section class="wrap page-head">
+  <div class="crumbs mono"><a href="/">Implied</a><span>/</span><span>Analyze</span></div>
+  <h1 class="display">Analyze a chain</h1>
+  <p>Bring a real options chain from TrendSpider and see exactly what Implied would paint on that chart. Nothing is uploaded: the file is read and modelled on this page, in your browser.</p>
+</section>
+
+<section class="wrap grid-app">
+  <div class="stack">
+    <div class="panel">
+      <h2>1 · Get your chain</h2>
+      <p class="hint">In TrendSpider's script editor, add this line right after the chain request in <code>implied.js</code>, run it on any ticker, and copy what the browser console prints.</p>
+      <div class="code" id="snippet">console.log(JSON.stringify({ ticker: current.ticker, schedule, chain }));<button class="pill sm dark" data-copy-text="#snippet-text">Copy</button></div>
+      <span id="snippet-text" class="sr">console.log(JSON.stringify({ ticker: current.ticker, schedule, chain }));</span>
+    </div>
+    <div class="panel">
+      <h2>2 · Load it</h2>
+      <p class="hint">Drop the file, choose it, or paste the JSON.</p>
+      <div class="drop" id="drop">
+        <p style="margin:0 0 12px"><b>Drop a .json file here</b></p>
+        <label class="pill solid sm" style="cursor:pointer">Choose file<input type="file" id="file" accept=".json,application/json" class="sr"></label>
+      </div>
+      <div class="field" style="margin-top:14px"><label for="paste">Or paste JSON</label><textarea id="paste" placeholder='{"ticker":"SPY","schedule":[…],"chain":{…}}'></textarea></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="pill solid" id="run">Analyze</button>
+        <button class="pill" id="example">Load an example</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Settings</h2>
+      <p class="hint">The indicator's own inputs.</p>
+      <div class="field"><label for="exp">Expirations to project <output data-for="exp">4</output></label><input type="range" id="exp" min="1" max="8" step="1" value="4"></div>
+      <div class="field"><label for="rate">Risk-free rate <output data-for="rate">4.0%</output></label><input type="range" id="rate" min="0" max="10" step="0.25" value="4"></div>
+      <div class="field"><label for="spr">Max bid-ask spread <output data-for="spr">0.50 of mid</output></label><input type="range" id="spr" min="0.05" max="2" step="0.05" value="0.5"></div>
+      <div class="field"><label for="mins">Min usable strikes <output data-for="mins">8</output></label><input type="range" id="mins" min="5" max="60" step="1" value="8"></div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div id="notice" class="notice"><i></i><span>Load a chain to begin, or try the example.</span></div>
+    <div class="dark-card">
+      <div class="chart-host" id="chart"><div class="on-chart-msg"><span>Your chart appears here.<small>The history line is flat when the file has no price history; the cloud is computed from the chain alone.</small></span></div></div>
+      <div class="chart-bar"><div class="chips" id="chips"></div><span class="mono" id="status"></span></div>
+    </div>
+    <div class="table-wrap" id="table"></div>
+  </div>
+</section>

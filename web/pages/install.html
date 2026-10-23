@@ -1,0 +1,48 @@
+<!--{"slug":"install","title":"Install","description":"Add Implied to TrendSpider in about a minute: copy one file into the Custom JS indicator editor, then add it to a Daily chart.","scripts":[]}-->
+<section class="wrap page-head">
+  <div class="crumbs mono"><a href="/">Implied</a><span>/</span><span>Install</span></div>
+  <h1 class="display">Install</h1>
+  <p>One file, no server, no API key. TrendSpider hosts the code, the data and the runtime. It takes about a minute.</p>
+</section>
+
+<section class="wrap">
+  <div class="features">
+    <div class="feature f-lime" style="min-height:240px"><span class="n">01</span><div><h3>Copy</h3><p>Copy the script, or download <code>implied.js</code>.</p><div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap"><button class="pill solid" data-copy>Copy the script</button><a class="pill" href="/implied.js" download>Download</a></div></div></div>
+    <div class="feature f-pink" style="min-height:240px"><span class="n">02</span><div><h3>Paste</h3><p>In TrendSpider, open the Custom JS indicator editor, create a new indicator, paste, and save.</p></div></div>
+    <div class="feature f-blue" style="min-height:240px"><span class="n">03</span><div><h3>Add</h3><p>Add Implied to a <b>Daily</b> chart of any ticker with listed US options.</p></div></div>
+  </div>
+</section>
+
+<section class="wrap section">
+  <h2 class="display title">Requirements</h2>
+  <div class="stats">
+    <div class="stat"><b>Daily</b><span>timeframe only; other timeframes show a message</span></div>
+    <div class="stat"><b>OPRA</b><span>TrendSpider's real-time options data subscription</span></div>
+    <div class="stat"><b>Options</b><span>a ticker with listed US options</span></div>
+    <div class="stat"><b>$0</b><span>free and open source, Apache-2.0</span></div>
+  </div>
+</section>
+
+<section class="wrap section">
+  <h2 class="display title">Settings</h2>
+  <p class="sub">Five settings, all with safe defaults: add it and it works.</p>
+  <div class="table-wrap"><table class="data"><thead><tr><th class="l">Setting</th><th>Default</th><th>Range</th><th class="l">What it does</th></tr></thead><tbody>
+    <tr><td>Expirations to project</td><td>4</td><td>1–8</td><td class="l">How far into the future the cloud reaches</td></tr>
+    <tr><td>Risk-free rate (%)</td><td>4.0</td><td>0–15</td><td class="l">Discounting in the parity and pricing steps</td></tr>
+    <tr><td>Max bid-ask spread (fraction of mid)</td><td>0.5</td><td>0.05–2</td><td class="l">Drops stale, illiquid quotes</td></tr>
+    <tr><td>Min usable strikes per expiry</td><td>8</td><td>5–60</td><td class="l">Skips expiries too thin to model</td></tr>
+    <tr><td>Show Fork (1 = on, 0 = off)</td><td>1</td><td>0–1</td><td class="l">Hides the Fork marks for a cleaner chart</td></tr>
+  </tbody></table></div>
+</section>
+
+<section class="wrap section">
+  <h2 class="display title">Messages</h2>
+  <p class="sub">Implied never draws a broken chart. When it can't build a distribution, it says why.</p>
+  <div class="table-wrap"><table class="data"><thead><tr><th class="l">Situation</th><th class="l">What you see on the chart</th></tr></thead><tbody>
+    <tr><td class="l">Not a Daily chart</td><td class="l">“Implied runs on the Daily timeframe only.”</td></tr>
+    <tr><td class="l">No listed options (crypto, most futures, forex), or no OPRA subscription</td><td class="l">“No options data for X. Implied needs a ticker with listed options and an OPRA subscription.” plus the data error, if any</td></tr>
+    <tr><td class="l">Every expiry too thin</td><td class="l">“Not enough liquid strikes on X to build a distribution.”</td></tr>
+    <tr><td class="l">Some expiries thin</td><td class="l">Those are skipped; the rest still draw</td></tr>
+  </tbody></table></div>
+  <div class="notice warn" style="margin-top:16px"><i></i><span><b>Built and tested against a stand-in for TrendSpider's runtime.</b> A handful of TrendSpider calls are marked VERIFY in the source and listed in the repository's <a href="https://github.com/linoxbt/Implied/blob/main/docs/verify-in-trendspider.md">verification guide</a>. Check those in the editor before relying on it.</span></div>
+</section>

@@ -246,13 +246,19 @@ function fitSmile(pts, T, opts = {}) {
   const ws = best.z.map(v => v * scale);
   const spline = naturalSpline(grid, ws);
   const floor = 1e-4 * T; // 1% volatility
-  // Linear wings from the edge slopes; Lee's moment bound keeps |dw/dk| <= 2,
-  // and the wings may not turn back toward the money.
-  const sLo = Math.min(0, Math.max(-2, spline.slope(kMin)));
-  const sHi = Math.max(0, Math.min(2, spline.slope(kMax)));
-  const wLo = ws[0], wHi = ws[M - 1];
+  // Wings beyond the quotes. Each starts with the spline's own edge slope (so
+  // the smile has no kink there, and the density no spike) and bends over a
+  // blend zone into a final slope that respects Lee's moment bound
+  // (|dw/dk| <= 2) and does not turn back toward the money.
+  const blend = Math.max(0.02, 0.25 * (kMax - kMin));
+  const wing = (w0, s0, sEnd) => x => x < blend
+    ? w0 + s0 * x + (sEnd - s0) * x * x / (2 * blend)
+    : w0 + (s0 + sEnd) * blend / 2 + sEnd * (x - blend);
+  const s0Lo = -spline.slope(kMin), s0Hi = spline.slope(kMax); // slopes in the outward direction
+  const left = wing(ws[0], s0Lo, Math.min(2, Math.max(0, s0Lo)));
+  const right = wing(ws[M - 1], s0Hi, Math.min(2, Math.max(0, s0Hi)));
   return k => Math.max(floor,
-    k < kMin ? wLo + sLo * (k - kMin) : k > kMax ? wHi + sHi * (k - kMax) : spline.value(k));
+    k < kMin ? left(kMin - k) : k > kMax ? right(k - kMax) : spline.value(k));
 }
 
 // ---------- Density (Breeden-Litzenberger) ----------

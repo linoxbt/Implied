@@ -1,3 +1,5 @@
+<p><img src="web/assets/logo-mark.svg" width="72" alt="Implied logo"></p>
+
 # Implied
 
 **See where the options market actually thinks price is going, with the real shape of the bet: skewed, fat-tailed, and sometimes split in two.**
@@ -9,6 +11,17 @@ Implied is a free, open-source [TrendSpider](https://trendspider.com) custom ind
 | ![SPY preview](docs/img/SPY-dark.png) | ![Earnings preview](docs/img/EARN-dark.png) |
 
 *Previews rendered from the script's own paint calls on synthetic chains (`npm run preview`).*
+
+**Try it live: [implied.netlify.app](https://implied.netlify.app).** Every page runs the real `dist/implied.js` in your browser against a stand-in for TrendSpider's runtime.
+
+| Page | What it does |
+| --- | --- |
+| [Lab](https://implied.netlify.app/lab/) | Shape a market (volatility, skew, an earnings jump, spreads) and watch the script repaint |
+| [The Fork](https://implied.netlify.app/fork/) | Build a two-outcome market and watch the detector apply its three rules |
+| [Analyze](https://implied.netlify.app/analyze/) | Drop a chain saved from TrendSpider and see what Implied would paint on it |
+| [How it works](https://implied.netlify.app/how-it-works/) | Quotes → implied vol → fitted smile → density → cloud, one live chart per step |
+| [Validation](https://implied.netlify.app/validation/) | Run the accuracy checks in the browser |
+| [Install](https://implied.netlify.app/install/) | Copy or download the script; settings and messages |
 
 ## Install in TrendSpider
 
@@ -78,6 +91,7 @@ Node 18+ and no dependencies.
 npm test          # build dist/implied.js, then run all tests
 npm run check     # fail if dist/implied.js is stale (CI runs this)
 npm run preview   # render preview/index.html (dark + light) from the script's paint calls
+npm run site      # build the website into public/ (deployed to Netlify)
 node tools/replay.js chains/<file>.json   # run a saved real chain through the script
 ```
 
@@ -89,6 +103,8 @@ node tools/replay.js chains/<file>.json   # run a saved real chain through the s
 | `test/runtime.js` | Mock of the TrendSpider runtime; runs `dist/implied.js` unchanged and records paint calls |
 | `test/fixtures.js` | Synthetic chains priced from known distributions (smiles, two-outcome mixtures, illiquid) |
 | `chains/` | Saved chains; every file here is replayed by the test suite |
+| `web/` | Website: `pages/` (one file per page), `assets/` (styles, charts, browser engine, logo) |
+| `tools/site.js` | Builds `web/` into `public/`; copies `dist/implied.js` and `src/core.js` so the site runs the real code |
 | `docs/` | Store listing, TrendSpider verification steps, release checklist |
 
 ### Validation (synthetic chains with realistic bid-ask spreads and quote noise)

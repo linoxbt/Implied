@@ -1,0 +1,48 @@
+<!--{"slug":"","title":"See the real shape of the bet","description":"Implied is a free, open-source TrendSpider indicator that paints the options market's full implied price distribution into the future: skewed, fat-tailed, and sometimes split in two.","scripts":["core","engine","charts","results","pages/home"]}-->
+<section class="hero"><div class="wrap">
+  <div class="status"><i></i>Free &amp; open source<a href="/install/">Install →</a></div>
+  <div class="headline">
+    <span class="sticker st-red s-bl" aria-hidden="true">Breeden–Litzenberger</span>
+    <img class="orb" src="/assets/logo-mark.svg" alt="" aria-hidden="true">
+    <span class="sticker st-blue s-ts" aria-hidden="true">#TSBuild26</span>
+    <span class="burst" aria-hidden="true"><svg viewBox="0 0 100 100"><polygon fill="#c6f432" points="%%BURST%%"/></svg><span>$0<br>free</span></span>
+    <h1 class="display"><span>See the real</span><span>shape of the bet</span></h1>
+    <span class="sticker st-pink s-fork" aria-hidden="true">Split in two? It says so.</span>
+  </div>
+  <p class="lede">Implied is a TrendSpider indicator. It reads the live options chain and paints the distribution the market is pricing into the future on your chart.</p>
+  <div class="ctas"><a class="pill solid" href="/lab/">Try it in the Lab <span class="arr">↗</span></a><button class="pill" data-copy>Copy the script</button></div>
+</div></section>
+
+<section class="wrap" aria-label="Live demo">
+  <div class="dark-card reveal">
+    <div class="chart-bar" style="padding:8px 8px 12px"><span class="mono" style="color:#cfd2d8"><span class="live-dot"></span>Live · implied.js running in your browser</span>
+      <div class="seg" role="group" aria-label="Demo market" style="margin:0;grid-template-columns:repeat(3,auto)">
+        <button type="button" data-demo="earnings" aria-pressed="true">Earnings</button><button type="button" data-demo="index" aria-pressed="false">Index</button><button type="button" data-demo="meme" aria-pressed="false">High IV</button>
+      </div></div>
+    <div class="chart-host" id="chart"></div>
+    <div class="chart-bar"><div class="chips" id="chips"></div><a class="pill sm light-on-dark" href="/lab/" id="toLab">Open in the Lab <span class="arr">↗</span></a></div>
+  </div>
+  <p class="muted" style="font-size:13.5px;margin:10px 4px 0">Simulated option chain, real script. Hover the cloud to read every band on any future day.</p>
+</section>
+
+<section class="wrap section">
+  <h2 class="display title">What it does</h2>
+  <p class="sub">Every feature has its own page. Each one runs the real code.</p>
+  <div class="features">
+    <a class="feature f-lime reveal" href="/lab/"><span class="go">↗</span><span class="n">01 · Lab</span><div><h3>Shape a market</h3><p>Sliders for volatility, skew, an earnings jump and spreads. The script repaints as you move them.</p></div></a>
+    <a class="feature f-pink reveal" href="/fork/"><span class="go">↗</span><span class="n">02 · The Fork</span><div><h3>Two outcomes</h3><p>Watch the detector decide when the market is pricing a split, rule by rule.</p></div></a>
+    <a class="feature f-blue reveal" href="/analyze/"><span class="go">↗</span><span class="n">03 · Analyze</span><div><h3>Your chain</h3><p>Drop a chain saved from TrendSpider and see what Implied would paint on it.</p></div></a>
+    <a class="feature f-orange reveal" href="/how-it-works/"><span class="go">↗</span><span class="n">04 · How it works</span><div><h3>Step by step</h3><p>Quotes, implied volatility, the smile, the density, the cloud: one chain, five live charts.</p></div></a>
+    <a class="feature f-ink reveal" href="/validation/"><span class="go">↗</span><span class="n">05 · Validation</span><div><h3>Prove it</h3><p>Run the accuracy checks in your browser: Fork hit rate, false alarms, density error.</p></div></a>
+    <a class="feature f-paper reveal" href="/install/"><span class="go">↗</span><span class="n">06 · Install</span><div><h3>One minute</h3><p>Copy one file into TrendSpider's editor and add it to a Daily chart.</p></div></a>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="stats reveal">
+    <div class="stat"><b>95/96</b><span>two-outcome chains where the Fork was found</span></div>
+    <div class="stat"><b>0/2,250</b><span>false Forks on one-outcome chains</span></div>
+    <div class="stat"><b>&lt;1 pt</b><span>probability error per band, 7–90 days</span></div>
+    <div class="stat"><b>~0.2 s</b><span>to model and paint 8 expiries</span></div>
+  </div>
+</section>

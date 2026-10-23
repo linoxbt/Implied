@@ -1,0 +1,32 @@
+<!--{"slug":"validation","title":"Validation","description":"Run Implied's accuracy checks in your browser: Fork detection, false-alarm rate, density accuracy and the on-chart messages.","scripts":["core","engine","pages/validation"]}-->
+<section class="wrap page-head">
+  <div class="crumbs mono"><a href="/">Implied</a><span>/</span><span>Validation</span></div>
+  <h1 class="display">Validation</h1>
+  <p>A density that looks right but is wrong is worse than none. These checks price option chains from distributions we know, add real-world bid-ask spreads and quote noise, and test what Implied recovers. Run them here; they use the same code as the indicator.</p>
+</section>
+
+<section class="wrap">
+  <div class="panel" style="display:grid;gap:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div><h2>Run the checks in your browser</h2><p class="hint" style="margin:0">About 350 simulated chains. Takes a few seconds.</p></div>
+      <button class="pill solid" id="go">Run all checks</button>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    <div class="table-wrap"><table class="data" id="results"><thead><tr><th class="l">Check</th><th>Target</th><th>Result</th><th>Status</th></tr></thead><tbody>
+      <tr data-k="fork"><td class="l"><b>Fork found</b><br><span class="muted">Two-outcome earnings chains: 7–21 days, 40/60 to 60/40 odds, 1–5% spreads</span></td><td>≥ 95%</td><td>—</td><td>—</td></tr>
+      <tr data-k="false"><td class="l"><b>No false Forks</b><br><span class="muted">One-outcome chains: index put skew, meme call skew, steep smiles, 3–90 days, noisy quotes</span></td><td>0</td><td>—</td><td>—</td></tr>
+      <tr data-k="median"><td class="l"><b>Median on a flat smile</b><br><span class="muted">25% volatility, 30 days; theory says F·e^(−σ²T/2)</span></td><td>&lt; 0.2% off</td><td>—</td><td>—</td></tr>
+      <tr data-k="area"><td class="l"><b>Density integrates to 1</b><br><span class="muted">Total probability on the same chain</span></td><td>1 ± 0.001</td><td>—</td><td>—</td></tr>
+      <tr data-k="skew"><td class="l"><b>Skew direction</b><br><span class="muted">Put skew gives a fatter downside tail; call skew a fatter upside</span></td><td>both right</td><td>—</td><td>—</td></tr>
+      <tr data-k="msgs"><td class="l"><b>On-chart messages</b><br><span class="muted">No options, data error, weekly chart, illiquid ticker: the real script, end to end</span></td><td>4 of 4</td><td>—</td><td>—</td></tr>
+      <tr data-k="speed"><td class="l"><b>Speed</b><br><span class="muted">Real script, 8 expirations, modelled and painted</span></td><td>&lt; 1 s</td><td>—</td><td>—</td></tr>
+    </tbody></table></div>
+  </div>
+</section>
+
+<section class="wrap section">
+  <h2 class="display title">In the repository</h2>
+  <p class="sub">The same ideas, plus unit tests of every math function, run on every push with Node 18, 20 and 22 (<code>npm test</code>). These are the test names, read straight from the test files when this site was built.</p>
+  <div class="table-wrap"><table class="data"><thead><tr><th class="l">File</th><th class="l">Test</th></tr></thead><tbody>%%TESTS%%</tbody></table></div>
+  <div class="notice warn" style="margin-top:16px"><i></i><span><b>What these don't cover:</b> everything here runs against simulated chains and a stand-in for TrendSpider's runtime. The live checks on real TrendSpider charts are listed in the repository's release checklist.</span></div>
+</section>
