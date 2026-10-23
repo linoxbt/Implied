@@ -9,7 +9,7 @@
     <h1 class="display"><span>See the real</span><span>shape of the bet</span></h1>
     <span class="sticker st-pink s-fork" aria-hidden="true">Split in two? It says so.</span>
   </div>
-  <p class="lede">Implied is a TrendSpider indicator. It reads the live options chain and paints the distribution the market is pricing into the future on your chart.</p>
+  <p class="lede">the options market's real distribution, on your trendspider chart.</p>
   <div class="ctas"><a class="pill solid" href="/lab/">Try it in the Lab <span class="arr">↗</span></a><button class="pill" data-copy>Copy the script</button></div>
 </div></section>
 
@@ -22,13 +22,12 @@
     <div class="chart-host" id="chart"></div>
     <div class="chart-bar"><div class="chips" id="chips"></div><a class="pill sm light-on-dark" href="/lab/" id="toLab">Open in the Lab <span class="arr">↗</span></a></div>
   </div>
-  <p class="muted" style="font-size:13.5px;margin:10px 4px 0">Simulated option chain, real script. Hover the cloud to read every band on any future day.</p>
 </section>
 
 <section class="wrap quote" aria-label="Why Implied">
   <aside class="reveal"><b>1 → 241</b><span>one straddle number, versus a 241-point density per expiry</span></aside>
   <div>
-    <p class="big" data-words>“Every expected-move tool assumes a bell curve. Implied shows the real shape of the bet: skewed, fat-tailed, and sometimes split in two.”</p>
+    <p class="big" data-words>“every expected-move tool assumes a bell curve. implied shows the real shape.”</p>
     <div class="cite"><img src="/assets/logo-mark.svg" alt=""><div><b>Implied</b><br>Most Unique Options Indicator · 2026 TrendSpider Hackathon</div></div>
   </div>
 </section>
@@ -37,7 +36,7 @@
   <section class="wrap about">
     <div class="mono">What it is</div>
     <div>
-      <p class="big" data-words>Implied reads the live options chain and paints the probability distribution the market is pricing, out to every expiry. Not one number drawn as a symmetric cone, but the full density from every liquid strike: lopsided when the market is, and split in two when it is betting on two outcomes.</p>
+      <p class="big" data-words>the full distribution from every liquid strike: lopsided, fat-tailed, sometimes split in two.</p>
       <div class="facts">
         <span>One file, pasted into TrendSpider</span><span>Runs on any ticker with listed options</span>
         <span>No server, no API key</span><span>Free and open source</span>
@@ -67,21 +66,21 @@
       <div class="plan reveal">
         <h3 class="display">Validation</h3>
         <div class="price">0/2,250</div><small>false Forks in testing</small>
-        <p class="desc">Run the accuracy checks yourself, in the browser, on about 350 simulated chains.</p>
+        <p class="desc">run the checks in your browser.</p>
         <ul><li>95/96 two-outcome markets caught</li><li>Under 1 point of probability error</li><li>Every on-chart message checked</li><li>About 0.2 s for 8 expiries</li></ul>
         <a class="pill light" href="/validation/">Run the checks <span class="arr">↗</span></a>
       </div>
       <div class="plan hot reveal">
         <div class="ph"><h3 class="display">Implied</h3><span class="lime-pill">Free forever</span></div>
         <div class="price">$0</div><small>open source, Apache-2.0</small>
-        <p class="desc">The full distribution from every liquid strike, out to each expiry.</p>
+        <p class="desc">the full distribution, out to each expiry.</p>
         <ul><li>Skew you can see, in words too</li><li>Fat tails where the market pays for them</li><li>The Fork: two outcomes, flagged</li><li>Clear messages, never a broken chart</li></ul>
         <button class="pill solid" data-copy>Copy the script <span class="arr">↗</span></button>
       </div>
       <div class="plan reveal">
         <h3 class="display">Install</h3>
         <div class="price">~1 min</div><small>to set up</small>
-        <p class="desc">No server, no API key. TrendSpider hosts the code, the data and the runtime.</p>
+        <p class="desc">no server, no api key.</p>
         <ul><li>Open the Custom JS indicator editor</li><li>Paste the script and save</li><li>Add it to a Daily chart with options</li><li>Needs TrendSpider's OPRA data</li></ul>
         <a class="pill light" href="/install/">Install guide <span class="arr">↗</span></a>
       </div>

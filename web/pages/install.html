@@ -2,7 +2,7 @@
 <section class="wrap page-head">
   <div class="crumbs mono"><a href="/">Implied</a><span>/</span><span>Install</span></div>
   <h1 class="display">Install</h1>
-  <p>One file, no server, no API key. TrendSpider hosts the code, the data and the runtime. It takes about a minute.</p>
+  <p>one file. about a minute.</p>
 </section>
 
 <section class="wrap">
@@ -25,7 +25,7 @@
 
 <section class="wrap section">
   <h2 class="display title">Settings</h2>
-  <p class="sub">Five settings, all with safe defaults: add it and it works.</p>
+  
   <div class="table-wrap"><table class="data"><thead><tr><th class="l">Setting</th><th>Default</th><th>Range</th><th class="l">What it does</th></tr></thead><tbody>
     <tr><td>Expirations to project</td><td>4</td><td>1–8</td><td class="l">How far into the future the cloud reaches</td></tr>
     <tr><td>Risk-free rate (%)</td><td>4.0</td><td>0–15</td><td class="l">Discounting in the parity and pricing steps</td></tr>
@@ -37,12 +37,12 @@
 
 <section class="wrap section">
   <h2 class="display title">Messages</h2>
-  <p class="sub">Implied never draws a broken chart. When it can't build a distribution, it says why.</p>
+  <p class="sub">never a broken chart. it says why.</p>
   <div class="table-wrap"><table class="data"><thead><tr><th class="l">Situation</th><th class="l">What you see on the chart</th></tr></thead><tbody>
     <tr><td class="l">Not a Daily chart</td><td class="l">“Implied runs on the Daily timeframe only.”</td></tr>
     <tr><td class="l">No listed options (crypto, most futures, forex), or no OPRA subscription</td><td class="l">“No options data for X. Implied needs a ticker with listed options and an OPRA subscription.” plus the data error, if any</td></tr>
     <tr><td class="l">Every expiry too thin</td><td class="l">“Not enough liquid strikes on X to build a distribution.”</td></tr>
     <tr><td class="l">Some expiries thin</td><td class="l">Those are skipped; the rest still draw</td></tr>
   </tbody></table></div>
-  <div class="notice warn" style="margin-top:16px"><i></i><span><b>Checked against TrendSpider's scripting reference, tested against a stand-in for its runtime.</b> Three quick checks remain for the editor itself (projection day units, the summary panel, a real chain); they are in the repository's <a href="https://github.com/linoxbt/Implied/blob/main/docs/verify-in-trendspider.md">verification guide</a>.</span></div>
+  <div class="notice warn" style="margin-top:16px"><i></i><span>three quick checks remain in the editor: see the <a href="https://github.com/linoxbt/Implied/blob/main/docs/verify-in-trendspider.md">verification guide</a>.</span></div>
 </section>

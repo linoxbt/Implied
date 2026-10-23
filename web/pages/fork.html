@@ -2,16 +2,15 @@
 <section class="wrap page-head" style="position:relative">
   <div class="crumbs mono"><a href="/">Implied</a><span>/</span><span>The Fork</span></div>
   <h1 class="display">The Fork</h1>
-  <p>Before a big event, the market often stops betting on one outcome and starts pricing two. A bell-curve tool can't show that. Implied looks for two clear peaks in the market's distribution and labels the split. Shape the market below and watch the detector decide.</p>
+  <p>when the market prices two outcomes.</p>
 </section>
 
 <section class="wrap grid-app">
   <form class="panel" onsubmit="return false" aria-label="Two-outcome market">
     <h2>The event</h2>
-    <p class="hint">One expiry after an earnings release. Quotes are priced from a mix of two outcomes, then run through Implied's own pipeline.</p>
-    <div class="field"><label for="move">Move the market prices <output data-for="move"></output></label><input type="range" id="move" min="0" max="15" step="0.5" value="8"><small>Each outcome sits this far from the forward.</small></div>
+    <div class="field"><label for="move">Move the market prices <output data-for="move"></output></label><input type="range" id="move" min="0" max="15" step="0.5" value="8"></div>
     <div class="field"><label for="vol">Volatility around each outcome <output data-for="vol"></output></label><input type="range" id="vol" min="8" max="60" step="1" value="20"></div>
-    <div class="field"><label for="dte">Days to expiry <output data-for="dte"></output></label><input type="range" id="dte" min="2" max="60" step="1" value="10"><small>Longer horizons blur two outcomes back into one.</small></div>
+    <div class="field"><label for="dte">Days to expiry <output data-for="dte"></output></label><input type="range" id="dte" min="2" max="60" step="1" value="10"></div>
     <div class="field"><label for="w">Odds of the downside outcome <output data-for="w"></output></label><input type="range" id="w" min="25" max="75" step="1" value="50"></div>
     <div class="field"><label for="spr">Bid-ask spread <output data-for="spr"></output></label><input type="range" id="spr" min="0.5" max="10" step="0.5" value="3"></div>
     <label class="switch">Show the true distribution <input type="checkbox" id="truth" checked></label>
@@ -25,7 +24,6 @@
     </div>
     <div class="panel">
       <h3>The three rules</h3>
-      <p class="hint">A Fork needs all three, measured on the lightly smoothed density.</p>
       <div style="display:grid;gap:22px">
         <div><div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:8px"><b>Valley below 70% of the smaller peak</b><span class="mono" id="r1"></span></div><div class="meter" id="m1"><i></i><b style="left:70%">70%</b></div></div>
         <div><div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:8px"><b>Peaks at least 3% of the forward apart</b><span class="mono" id="r2"></span></div><div class="meter" id="m2" style="background:linear-gradient(90deg, rgba(10,10,10,.1) 0 20%, var(--fork) 20%)"><i></i><b style="left:20%">3%</b></div></div>
@@ -37,7 +35,7 @@
 
 <section class="wrap section">
   <h2 class="display title">Why it matters</h2>
-  <p class="sub">When the market prices two outcomes, the middle of the range, where an average or a bell curve centers its forecast, is the least likely place for price to land. The Fork marks both outcomes and that empty middle.</p>
+  <p class="sub">the middle is the least likely place to land.</p>
   <div class="features">
     <div class="feature f-paper" style="min-height:0"><div><span class="n">On the chart</span><h3 style="font-size:34px;margin-top:14px">Orange ticks</h3><p>One at each outcome, on the last three bars before the expiry.</p></div></div>
     <div class="feature f-paper" style="min-height:0"><div><span class="n">On the chart</span><h3 style="font-size:34px;margin-top:14px">Grey tick</h3><p>The least likely zone between them.</p></div></div>

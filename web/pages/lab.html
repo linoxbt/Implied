@@ -2,13 +2,12 @@
 <section class="wrap page-head">
   <div class="crumbs mono"><a href="/">Implied</a><span>/</span><span>Lab</span></div>
   <h1 class="display">The Lab</h1>
-  <p>Shape an options market, and the real <code>implied.js</code> runs on it right here in your browser: the same file you paste into TrendSpider, unmodified. What you see is exactly what it paints.</p>
+  <p>shape a market. the real script repaints it.</p>
 </section>
 
 <section class="wrap grid-app">
   <form class="panel" id="controls" onsubmit="return false" aria-label="Market settings">
     <h2>Market</h2>
-    <p class="hint">A simulated option chain is priced from these settings, with real-world bid-ask spreads and quote noise.</p>
     <div class="seg" role="group" aria-label="Preset">
       <button type="button" data-preset="index" aria-pressed="true">Index</button>
       <button type="button" data-preset="earnings" aria-pressed="false">Earnings</button>
@@ -17,14 +16,13 @@
     </div>
     <div class="field"><label for="S">Spot price <output data-for="S"></output></label><input type="range" id="S" min="10" max="1000" step="1"></div>
     <div class="field"><label for="vol">Volatility <output data-for="vol"></output></label><input type="range" id="vol" min="8" max="150" step="1"></div>
-    <div class="field"><label for="skew">Skew <output data-for="skew"></output></label><input type="range" id="skew" min="-0.8" max="0.8" step="0.05"><small>Negative: puts richer (crash risk). Positive: calls richer.</small></div>
+    <div class="field"><label for="skew">Skew <output data-for="skew"></output></label><input type="range" id="skew" min="-0.8" max="0.8" step="0.05"></div>
     <div class="field"><label for="curv">Smile curvature <output data-for="curv"></output></label><input type="range" id="curv" min="0" max="3" step="0.1"></div>
-    <div class="field"><label for="move">Earnings move <output data-for="move"></output></label><input type="range" id="move" min="0" max="15" step="0.5"><small>Size of the up-or-down jump the market prices. 0 = no event.</small></div>
+    <div class="field"><label for="move">Earnings move <output data-for="move"></output></label><input type="range" id="move" min="0" max="15" step="0.5"></div>
     <div class="field"><label for="eDay">Earnings in <output data-for="eDay"></output></label><input type="range" id="eDay" min="1" max="60" step="1"></div>
     <div class="field"><label for="spreadPct">Bid-ask spread <output data-for="spreadPct"></output></label><input type="range" id="spreadPct" min="0.5" max="15" step="0.5"></div>
     <div class="sep"></div>
     <h2>Indicator settings</h2>
-    <p class="hint">These go straight into the script's own inputs.</p>
     <div class="field"><label for="expirations">Expirations to project <output data-for="expirations"></output></label><input type="range" id="expirations" min="1" max="8" step="1"></div>
     <label class="switch">Show Fork <input type="checkbox" id="showFork" checked></label>
     <button type="button" class="pill ghost sm" id="reseed">New quotes, same market</button>
@@ -41,6 +39,5 @@
       <button class="pill" id="download">Download chain JSON</button>
       <a class="pill ghost" href="/how-it-works/">See each step <span class="arr">↗</span></a>
     </div>
-    <p class="muted" style="font-size:13.5px;margin:0">Simulated market, real script. Price history is a random walk ending at the spot price; the projection is computed from the option chain alone. Hover the chart to read every band on any future day.</p>
   </div>
 </section>

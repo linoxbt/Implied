@@ -47,7 +47,7 @@ function layout(meta, body, version) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title>
+<title>${esc(title.toLowerCase())}</title>
 <meta name="description" content="${esc(meta.description)}">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(meta.description)}">
@@ -78,7 +78,7 @@ ${body}
 </main>
 <footer class="foot"><div class="wrap">
   <div class="grid4">
-    <div><div class="mono">Implied</div><p>A free, open-source TrendSpider indicator that paints the options market's implied price distribution into the future. Built for the 2026 TrendSpider Hackathon, Most Unique Options Indicator.</p><button class="pill solid sm" data-copy>Copy the script</button></div>
+    <div><div class="mono">Implied</div><p>free, open-source trendspider indicator. #tsbuild26</p><button class="pill solid sm" data-copy>Copy the script</button></div>
     <div><div class="mono">Explore</div><a class="big" href="/lab/">Lab</a><a class="big" href="/fork/">The Fork</a><a class="big" href="/analyze/">Analyze</a></div>
     <div><div class="mono">Learn</div><a class="big" href="/how-it-works/">How it works</a><a class="big" href="/validation/">Validation</a><a class="big" href="/install/">Install</a></div>
     <div><div class="mono">More</div><a class="big" href="${REPO}">Source ↗</a><div class="clock"><i id="mk"></i><span id="clock">US equities</span></div></div>

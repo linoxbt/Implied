@@ -2,13 +2,13 @@
 <section class="wrap page-head">
   <div class="crumbs mono"><a href="/">Implied</a><span>/</span><span>Validation</span></div>
   <h1 class="display">Validation</h1>
-  <p>A density that looks right but is wrong is worse than none. These checks price option chains from distributions we know, add real-world bid-ask spreads and quote noise, and test what Implied recovers. Run them here; they use the same code as the indicator.</p>
+  <p>run the accuracy checks yourself.</p>
 </section>
 
 <section class="wrap">
   <div class="panel" style="display:grid;gap:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-      <div><h2>Run the checks in your browser</h2><p class="hint" style="margin:0">About 350 simulated chains. Takes a few seconds.</p></div>
+      <div><h2>Run the checks in your browser</h2></div>
       <button class="pill solid" id="go">Run all checks</button>
     </div>
     <div class="progress" aria-hidden="true"><i id="bar"></i></div>
@@ -26,7 +26,7 @@
 
 <section class="wrap section">
   <h2 class="display title">In the repository</h2>
-  <p class="sub">The same ideas, plus unit tests of every math function, run on every push with Node 18, 20 and 22 (<code>npm test</code>). These are the test names, read straight from the test files when this site was built.</p>
+  <p class="sub">run on every push, node 18, 20 and 22.</p>
   <div class="table-wrap"><table class="data"><thead><tr><th class="l">File</th><th class="l">Test</th></tr></thead><tbody>%%TESTS%%</tbody></table></div>
-  <div class="notice warn" style="margin-top:16px"><i></i><span><b>What these don't cover:</b> everything here runs against simulated chains and a stand-in for TrendSpider's runtime. The live checks on real TrendSpider charts are listed in the repository's release checklist.</span></div>
+  <div class="notice warn" style="margin-top:16px"><i></i><span>simulated chains and a stand-in runtime. live trendspider checks are in the release checklist.</span></div>
 </section>

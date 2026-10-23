@@ -2,7 +2,7 @@
 <section class="wrap page-head">
   <div class="crumbs mono"><a href="/">Implied</a><span>/</span><span>How it works</span></div>
   <h1 class="display">How it works</h1>
-  <p>Follow one option chain through the pipeline, live. Every chart below is computed on this page by the same functions inside <code>implied.js</code>.</p>
+  <p>one chain, five live steps.</p>
 </section>
 
 <section class="wrap">
@@ -20,27 +20,27 @@
 <section class="wrap section" id="s1">
   <div class="mono" style="color:var(--ink-3)">Step 01</div>
   <h2 class="display title">Clean the quotes</h2>
-  <p class="sub" id="t1">Mid of bid and ask; zero bids, inverted quotes and very wide spreads are dropped. Only the out-of-the-money side is kept: puts below the forward (red), calls above it (blue). The forward comes from put-call parity at the strikes nearest spot.</p>
+  <p class="sub">out-of-the-money quotes only. puts red, calls blue.</p>
   <div class="dark-card"><div class="chart-host" id="c1"></div><div class="chart-bar"><div class="chips" id="k1"></div></div></div>
 </section>
 
 <section class="wrap section" id="s2">
   <div class="mono" style="color:var(--ink-3)">Step 02 + 03</div>
   <h2 class="display title">Solve, then smooth</h2>
-  <p class="sub">Each kept quote becomes an implied volatility (dots, with the bid-ask uncertainty as bars). A smoothing spline through them (orange) gives clean prices at every strike. The data choose how smooth: tight quotes keep their detail, noisy ones are smoothed harder, so a real two-outcome market can bend the curve but noise can't fake one.</p>
+  <p class="sub">implied volatility per strike, then a smooth spline.</p>
   <div class="dark-card"><div class="chart-host" id="c2"></div><div class="chart-bar"><div class="chips"><span class="chip">Dots: market implied vol</span><span class="chip fork">Line: fitted smile</span></div></div></div>
 </section>
 
 <section class="wrap section" id="s3">
   <div class="mono" style="color:var(--ink-3)">Step 04</div>
   <h2 class="display title">Take the density</h2>
-  <p class="sub">The second derivative of the call price in strike is the market's probability density (Breeden &amp; Litzenberger, 1978): <code>f(K) = e^(rT) · ∂²C/∂K²</code>. Shaded by the same bands the chart draws. Hover to read the market's odds of finishing below any price.</p>
+  <p class="sub">f(K) = e^(rT) · ∂²C/∂K². hover for the odds below any price.</p>
   <div class="dark-card"><div class="chart-host" id="c3"></div><div class="chart-bar"><div class="chips" id="k3"></div></div></div>
 </section>
 
 <section class="wrap section" id="s4">
   <div class="mono" style="color:var(--ink-3)">Step 05</div>
   <h2 class="display title">Paint the future</h2>
-  <p class="sub">Each expiry's percentiles are joined into bands that widen with the square root of time, starting at the last close. This is the real script's output for this chain.</p>
+  <p class="sub">percentiles joined into bands, widening with √time.</p>
   <div class="dark-card"><div class="chart-host" id="c4"></div><div class="chart-bar"><div class="chips" id="k4"></div><span class="mono" id="status"></span></div></div>
 </section>
