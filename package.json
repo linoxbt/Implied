@@ -1,0 +1,14 @@
+{
+  "name": "implied",
+  "version": "1.0.0",
+  "description": "TrendSpider indicator: the options market's full implied price distribution, projected on the chart.",
+  "license": "Apache-2.0",
+  "private": true,
+  "scripts": {
+    "build": "node tools/build.js",
+    "test": "node tools/build.js && node --test test/*.test.js",
+    "check": "node tools/build.js --check && node --test test/*.test.js",
+    "preview": "node tools/build.js && node tools/preview.js"
+  },
+  "engines": { "node": ">=18" }
+}
