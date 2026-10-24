@@ -1,7 +1,8 @@
 // Builds the Implied website into public/ (deployed to Netlify).
 // Each file in web/pages/ becomes its own page, wrapped in the shared header
-// (logo + hamburger menu) and footer. Pages run the real script in the
-// browser: assets/core.js is src/core.js, and /implied.js is the built file.
+// (logo + hamburger menu); the landing page also gets the footer. Pages run
+// the real script in the browser: assets/core.js is src/core.js, and
+// /implied.js is the built file.
 //   npm run site
 'use strict';
 const fs = require('fs');
@@ -141,7 +142,7 @@ ${header(meta.slug)}
 <main id="main">
 ${body}
 </main>
-${footer()}
+${meta.slug === '' ? footer() : ''}
 ${scriptsOf(meta, version)}
 </body>
 </html>

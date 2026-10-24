@@ -247,6 +247,7 @@ a.feature:hover{border-color:var(--blue-line);background:var(--blue-soft)}
 .badge.mk i{background:var(--bg-3);color:var(--ink-3)}
 
 /* ---------- Footer ---------- */
+body:not(.home) main{padding-bottom:72px} /* the footer is on the landing page only */
 .foot{margin-top:96px;border-top:1px solid var(--line);background:#fff;color:var(--ink-3)}
 .foot-grid{display:grid;gap:28px;grid-template-columns:1fr 1fr;padding:44px 0 30px}
 @media (min-width:900px){.foot-grid{grid-template-columns:2fr 1fr 1fr 1.3fr}}

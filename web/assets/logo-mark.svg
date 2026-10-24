@@ -1,14 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Implied">
   <defs>
-    <linearGradient id="im-g" x1="8" y1="0" x2="56" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="im-g" x1="0" y1="12" x2="0" y2="52" gradientUnits="userSpaceOnUse">
       <stop stop-color="#8b7cf8"/><stop offset=".55" stop-color="#c4b5fd"/><stop offset="1" stop-color="#ff8a6e"/>
     </linearGradient>
-    <linearGradient id="im-f" x1="0" y1="18" x2="0" y2="50" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8b7cf8" stop-opacity=".55"/><stop offset="1" stop-color="#8b7cf8" stop-opacity="0"/>
-    </linearGradient>
   </defs>
+  <!-- An I for Implied, over a skewed probability distribution -->
   <rect width="64" height="64" rx="16" fill="#0c0e16"/>
-  <path d="M8 48C14 48 15.5 20 23 20S28.5 36 32 36 35.5 16 43.5 16 50 48 56 48Z" fill="url(#im-f)"/>
-  <path d="M8 48C14 48 15.5 20 23 20S28.5 36 32 36 35.5 16 43.5 16 50 48 56 48" fill="none" stroke="url(#im-g)" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="32" cy="36" r="2.4" fill="#fff"/>
+  <path d="M32.18 12.5L32.24 13.11L32.31 13.72L32.39 14.33L32.5 14.94L32.63 15.55L32.79 16.16L32.98 16.77L33.21 17.38L33.48 17.98L33.8 18.59L34.17 19.2L34.59 19.81L35.07 20.42L35.61 21.03L36.21 21.64L36.87 22.25L37.59 22.86L38.37 23.47L39.19 24.08L40.05 24.69L40.95 25.3L41.87 25.91L42.79 26.52L43.7 27.13L44.6 27.73L45.45 28.34L46.24 28.95L46.96 29.56L47.59 30.17L48.12 30.78L48.53 31.39L48.82 32L48.97 32.61L48.99 33.22L48.92 33.83L48.75 34.44L48.5 35.05L48.17 35.66L47.76 36.27L47.28 36.88L46.74 37.48L46.14 38.09L45.5 38.7L44.82 39.31L44.11 39.92L43.37 40.53L42.63 41.14L41.88 41.75L41.14 42.36L40.41 42.97L39.69 43.58L39 44.19L38.34 44.8L37.71 45.41L37.12 46.02L36.56 46.63L36.04 47.23L35.57 47.84L35.13 48.45L34.73 49.06L34.37 49.67L34.05 50.28L33.76 50.89L33.5 51.5L30.5 51.5L30.24 50.89L29.95 50.28L29.63 49.67L29.27 49.06L28.87 48.45L28.43 47.84L27.96 47.23L27.44 46.63L26.88 46.02L26.29 45.41L25.66 44.8L25 44.19L24.31 43.58L23.59 42.97L22.86 42.36L22.12 41.75L21.37 41.14L20.63 40.53L19.89 39.92L19.18 39.31L18.5 38.7L17.86 38.09L17.26 37.48L16.72 36.88L16.24 36.27L15.83 35.66L15.5 35.05L15.25 34.44L15.08 33.83L15.01 33.22L15.03 32.61L15.18 32L15.47 31.39L15.88 30.78L16.41 30.17L17.04 29.56L17.76 28.95L18.55 28.34L19.4 27.73L20.3 27.13L21.21 26.52L22.13 25.91L23.05 25.3L23.95 24.69L24.81 24.08L25.63 23.47L26.41 22.86L27.13 22.25L27.79 21.64L28.39 21.03L28.93 20.42L29.41 19.81L29.83 19.2L30.2 18.59L30.52 17.98L30.79 17.38L31.02 16.77L31.21 16.16L31.37 15.55L31.5 14.94L31.61 14.33L31.69 13.72L31.76 13.11L31.82 12.5Z" fill="url(#im-g)" fill-opacity=".9"/>
+  <rect x="20.5" y="10.5" width="23" height="6" rx="3" fill="#fff"/>
+  <rect x="20.5" y="47.5" width="23" height="6" rx="3" fill="#fff"/>
+  <rect x="29" y="10.5" width="6" height="43" rx="3" fill="#fff"/>
 </svg>
