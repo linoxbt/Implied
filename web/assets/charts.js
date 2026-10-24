@@ -3,7 +3,7 @@
 (function (global) {
   'use strict';
   var NS = 'http://www.w3.org/2000/svg';
-  var C = { bg: '#0f1218', grid: 'rgba(255,255,255,.06)', axis: '#8d919b', price: '#e6e8ec', band: '#5b8def', median: '#9aa0b4', fork: '#ffb347', valley: '#7d8296', truth: 'rgba(255,255,255,.75)', dropped: '#4a4f5a' };
+  var C = { bg: '#0f1218', grid: 'rgba(255,255,255,.06)', axis: '#8d919b', price: '#e6e8ec', band: '#5b8def', median: '#9aa0b4', fork: '#ffb347', valley: '#7d8296', truth: 'rgba(255,255,255,.75)', dropped: '#4a4f5a', bell: '#ff7a90' };
   var QLABEL = ['2.5%', '10%', '25%', 'Median', '75%', '90%', '97.5%'];
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -63,7 +63,21 @@
   function row(k, v, cls) { return '<div class="r' + (cls ? ' ' + cls : '') + '"><span>' + k + '</span><span>' + v + '</span></div>'; }
 
   // ---------- Cloud: price history + what the script painted ----------
-  // opts: { close, time, out (runScript result), history (bars shown) }
+  // opts: { close, time, out (runScript result), history (bars shown), bell }
+  // bell: also draw the 95% range of a symmetric bell curve (lognormal) with
+  // the same median and the same 10th-90th percentile width as the cloud at
+  // every bar: what an expected-move tool assumes. Where the cloud's outer
+  // edges leave it, the market is pricing a lopsided or fat-tailed outcome.
+  function bellRange(bands, L) {
+    var lo = [], hi = [];
+    for (var i = 0; i <= L; i++) {
+      var q10 = bands[1].series[i], m = bands[3].series[i], q90 = bands[5].series[i];
+      if (q10 == null || m == null || q90 == null || i === 0) { lo.push(i === 0 ? m : null); hi.push(i === 0 ? m : null); continue; }
+      var s = Math.log(q90 / q10) / 2.5631; // a normal's 10th-90th percentile span is 2.563 sd
+      lo.push(m * Math.exp(-1.96 * s)); hi.push(m * Math.exp(1.96 * s));
+    }
+    return { lo: lo, hi: hi };
+  }
   function cloud(host, opts) {
     var out = opts.out, proj = out.projections || [];
     var hist = opts.close.slice(-(opts.history || 126)), times = opts.time.slice(-(opts.history || 126));
@@ -71,10 +85,12 @@
     var L = 0;
     if (bands.length) bands[0].series.forEach(function (v, i) { if (v != null) L = i; });
     var N = hist.length, total = N - 1 + L, lastT = times[times.length - 1];
+    var bell = opts.bell && bands.length === 7 && L ? bellRange(bands, L) : null;
     return mount(host, function (svg, w, h, tip) {
       var pad = { l: 12, r: 62, t: 18, b: 30 };
       var vals = hist.slice();
       proj.forEach(function (p) { p.series.forEach(function (v, i) { if (v != null && i <= L) vals.push(v); }); });
+      if (bell) bell.lo.concat(bell.hi).forEach(function (v) { if (v != null) vals.push(v); });
       var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), sp = hi - lo;
       lo -= sp * 0.06; hi += sp * 0.06;
       var X = function (i) { return pad.l + (i / Math.max(1, total)) * (w - pad.l - pad.r); };
@@ -119,6 +135,14 @@
         for (var i = 0; i <= L; i++) { var v = p.series[i]; if (v == null) flush(); else seg.push(X(fx + i).toFixed(1) + ',' + Y(v).toFixed(1)); }
         flush();
       });
+      // bell-curve comparison
+      if (bell) ['lo', 'hi'].forEach(function (side) {
+        var pts = [];
+        bell[side].forEach(function (v, i) { if (v != null) pts.push(X(fx + i).toFixed(1) + ',' + Y(v).toFixed(1)); });
+        el('polyline', { points: pts.join(' '), fill: 'none', stroke: C.bell, 'stroke-width': 1.5, 'stroke-dasharray': '6 5' }, svg);
+        var last = bell[side][L];
+        if (last != null) el('text', { x: X(total) - 4, y: Y(last) + (side === 'hi' ? -7 : 14), fill: C.bell, 'font-size': 11, 'text-anchor': 'end' }, svg).textContent = 'Bell curve ' + (side === 'hi' ? '97.5%' : '2.5%');
+      });
       // hover
       var cross = el('line', { y1: pad.t, y2: h - pad.b, stroke: 'rgba(255,255,255,.35)', visibility: 'hidden' }, svg);
       var dots = bands.map(function (_, j) { return el('circle', { r: j === 3 ? 3.5 : 2.5, fill: j === 3 ? C.median : C.band, visibility: 'hidden' }, svg); });
@@ -142,6 +166,7 @@
             dots[j].setAttribute('cx', X(i)); dots[j].setAttribute('cy', Y(v)); dots[j].setAttribute('visibility', v == null ? 'hidden' : 'visible');
             html += row(QLABEL[j], fmtPrice(v));
           }
+          if (bell && bell.hi[k] != null) html += row('Bell curve 95%', fmtPrice(bell.lo[k]) + ' – ' + fmtPrice(bell.hi[k]), 'bl');
           marks.forEach(function (m) { var v = m.series[k]; if (v != null) html += row(m.name.indexOf('least') >= 0 ? 'Least likely' : m.name.indexOf('lower') >= 0 ? 'Fork low' : 'Fork high', fmtPrice(v), 'fk'); });
         }
         showTip(tip, host, x, y, html, w);

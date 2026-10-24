@@ -43,7 +43,7 @@
       refs.chart.innerHTML = '<div class="on-chart-msg"><span>' + esc(out.error) + '<small>This is the message the indicator shows on the chart.</small></span></div>';
       if (refs.chips) refs.chips.innerHTML = '<span class="chip">' + (out.crash ? 'Script error' : 'On-chart message') + '</span>';
     } else {
-      ImpliedCharts.cloud(refs.chart, { close: run.close, time: run.time, out: out, history: run.history || 90 });
+      ImpliedCharts.cloud(refs.chart, { close: run.close, time: run.time, out: out, history: run.history || 90, bell: run.bell });
       var lines = overlayLines(out);
       if (refs.chips) refs.chips.innerHTML = lines.map(function (l) {
         return '<span class="chip' + (l.indexOf('Fork') === 0 ? ' fork' : '') + '">' + esc(l) + '</span>';
@@ -52,11 +52,11 @@
     }
     if (refs.table) {
       var rows = out.error ? [] : expiryRows(run);
-      refs.table.innerHTML = !rows.length ? '' : '<table class="data"><thead><tr><th>expiry</th><th>forward</th><th>strikes used</th><th>2.5%</th><th>median</th><th>97.5%</th><th>skew</th><th class="l">shape</th></tr></thead><tbody>' +
+      refs.table.innerHTML = !rows.length ? '' : '<table class="data"><thead><tr><th>Expiry</th><th>Forward</th><th>Strikes used</th><th>2.5%</th><th>Median</th><th>97.5%</th><th>Skew</th><th class="l">Shape</th></tr></thead><tbody>' +
         rows.map(function (r) {
           var tag = skewTag(r.skew);
           return '<tr><td>' + r.day + ' days</td><td>' + fmt(r.F) + '</td><td>' + r.used + ' of ' + r.total + '</td><td>' + fmt(r.q[0]) + '</td><td>' + fmt(r.q[3]) + '</td><td>' + fmt(r.q[6]) + '</td><td>' + r.skew.toFixed(2) + '</td><td class="l">' +
-            (r.fork ? '<span class="tag-fork">' + esc(forkLabel(r.fork)) + '</span>' : esc(tag || 'close to symmetric')) + '</td></tr>';
+            (r.fork ? '<span class="tag-fork">' + esc(forkLabel(r.fork)) + '</span>' : esc(tag || 'Close to symmetric')) + '</td></tr>';
         }).join('') + '</tbody></table>';
     }
   }

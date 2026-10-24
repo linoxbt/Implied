@@ -49,7 +49,7 @@ function layout(meta, body, version) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title.toLowerCase())}</title>
+<title>${esc(title)}</title>
 <meta name="description" content="${esc(meta.description)}">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(meta.description)}">
@@ -58,12 +58,12 @@ function layout(meta, body, version) {
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="${SITE}/${slug ? slug + '/' : ''}">
-<meta name="theme-color" content="#f4f4f2">
+<meta name="theme-color" content="#0b0e14">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/assets/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=${version}">
 </head>
 <body>
@@ -71,7 +71,8 @@ function layout(meta, body, version) {
 <header class="top"><div class="wrap">
   <a class="brand" href="/" aria-label="Implied home"><img src="/assets/logo-mark.svg" alt=""><b>implied</b></a>
   <div class="top-actions">
-    ${slug === 'lab' ? '' : '<a class="pill solid sm" href="/lab/">Open the Lab</a>'}
+    <nav class="top-nav" aria-label="Main">${NAV.slice(1).map(n => `<a href="/${n.slug}/"${n.slug === slug ? ' aria-current="page"' : ''}>${n.name}</a>`).join('')}</nav>
+    <button class="pill solid sm" type="button" data-copy>Copy the script</button>
     <button class="burger" type="button" aria-controls="menu" aria-expanded="false" aria-label="Open menu"><span></span></button>
   </div>
 </div></header>
@@ -84,12 +85,12 @@ ${body}
 </main>
 <footer class="foot"><div class="wrap">
   <div class="grid4">
-    <div><div class="mono">Implied</div><p>free, open-source trendspider indicator. #tsbuild26</p><button class="pill solid sm" data-copy>Copy the script</button></div>
-    <div><div class="mono">Explore</div><a class="big" href="/lab/">Lab</a><a class="big" href="/fork/">The Fork</a><a class="big" href="/analyze/">Analyze</a></div>
+    <div><div class="mono">Implied</div><p>A free, open-source TrendSpider indicator: the options market's implied price distribution, painted into the future. Built for the 2026 TrendSpider Hackathon (#TSBuild26).</p><button class="pill sm" data-copy>Copy the script</button></div>
+    <div><div class="mono">Explore</div><a class="big" href="/lab/">Lab</a><a class="big" href="/fork/">The Fork</a><a class="big" href="/analyze/">Analyze a chain</a></div>
     <div><div class="mono">Learn</div><a class="big" href="/how-it-works/">How it works</a><a class="big" href="/validation/">Validation</a><a class="big" href="/install/">Install</a></div>
-    <div><div class="mono">More</div><a class="big" href="${REPO}">Source ↗</a><div class="clock"><i id="mk"></i><span id="clock">US equities</span></div></div>
+    <div><div class="mono">More</div><a class="big" href="${REPO}">Source on GitHub ↗</a><div class="clock"><i id="mk"></i><span id="clock">US equities</span></div></div>
   </div>
-  <div class="bottom"><a class="brand" href="/"><img src="/assets/logo-mark.svg" alt="" style="width:24px;height:24px"><b style="font-size:19px">implied</b></a><span>Risk-neutral: the price of each outcome, not a forecast. Not investment advice.</span></div>
+  <div class="bottom"><a class="brand" href="/"><img src="/assets/logo-mark.svg" alt=""><b>implied</b></a><span>Risk-neutral: the price of each outcome, not a forecast. Not investment advice. Apache-2.0.</span></div>
 </div></footer>
 <div class="toast" role="status" aria-live="polite"></div>
 <script src="/assets/app.js?v=${version}"></script>

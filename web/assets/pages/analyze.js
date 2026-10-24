@@ -10,7 +10,7 @@
   function settings() { return { expirations: +document.getElementById('exp').value, rate: +document.getElementById('rate').value, spread: +document.getElementById('spr').value, minStrikes: +document.getElementById('mins').value }; }
   function clearResults() {
     ImpliedCharts.clear(refs.chart);
-    refs.chart.innerHTML = '<div class="on-chart-msg"><span>your chart appears here.</span></div>';
+    refs.chart.innerHTML = '<div class="on-chart-msg"><span>Your chart appears here.</span></div>';
     refs.chips.innerHTML = ''; refs.table.innerHTML = ''; refs.status.textContent = '';
   }
 
@@ -56,7 +56,7 @@
     } catch (e) {
       clearResults(); note('err', 'Could not draw this chain: ' + esc(e.message)); return;
     }
-    var n = Object.keys(data.chain.resultByExpiration || {}).length, name = esc(String(data.ticker || 'this chain'));
+    var n = Object.keys(data.chain.resultByExpiration || {}).length, name = esc(String(data.ticker || 'This chain'));
     if (out.crash) note('err', esc(out.error));
     else if (out.error) note('warn', '<b class="tk">' + name + '</b>: the indicator would show this message instead of a cloud.');
     else note('ok', '<b class="tk">' + name + '</b> · spot ' + ImpliedCharts.fmtPrice(c.S) + ' · ' + n + ' expirations in the file' + (label ? ' · ' + esc(label) : '') +
@@ -100,6 +100,6 @@
   if (new URLSearchParams(location.search).get('from') === 'lab') {
     var saved = null;
     try { saved = sessionStorage.getItem('implied:chain'); } catch (e) { /* storage blocked: nothing to load */ }
-    if (saved) handle(saved, 'handed over from the lab');
+    if (saved) handle(saved, 'handed over from the Lab');
   }
 })();

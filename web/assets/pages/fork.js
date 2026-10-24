@@ -19,8 +19,8 @@
       truth: document.getElementById('truth').checked ? Implied.trueDensity(model, ex.F, T, r, ex.d.Ks[0], ex.d.Ks[ex.d.Ks.length - 1]) : null });
     document.getElementById('status').textContent = ex.pts.length + ' strikes · modelled in ' + ms.toFixed(0) + ' ms';
     verdict.innerHTML = fork
-      ? '<span class="chip fork" style="font-size:14px;padding:8px 12px;background:#fff7ec;border-color:#ffd9a3;color:#9a5a00">fork detected</span><b style="font-size:18px">' + esc(forkLabel(fork)) + '</b>'
-      : '<span class="chip light" style="font-size:14px;padding:8px 12px">one outcome</span><b style="font-size:18px">' + (dg.peaks < 2 ? 'the market prices a single peak.' : 'two bumps, but no fork: ' + esc(dg.reason) + '.') + '</b>';
+      ? '<span class="chip fork" style="font-size:14px;padding:8px 12px;">Fork detected</span><b style="font-size:18px">' + esc(forkLabel(fork)) + '</b>'
+      : '<span class="chip light" style="font-size:14px;padding:8px 12px">One outcome</span><b style="font-size:18px">' + (dg.peaks < 2 ? 'The market prices a single peak.' : 'Two bumps, but no Fork: ' + esc(dg.reason) + '.') + '</b>';
     if (dg.peaks < 2) {
       document.getElementById('r1').textContent = 'one peak'; document.getElementById('r2').textContent = '—'; document.getElementById('r3').textContent = '—';
       meter('m1', 1); meter('m2', 0); meter('m3', 0);
