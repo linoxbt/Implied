@@ -240,7 +240,7 @@
   // ---------- Load ----------
   M.load(symParam).then(function (d) {
     D = d;
-    document.title = d.sym + ' Option Charts · Implied';
+    document.title = d.sym + ' · Implied';
     $('s-logo').textContent = d.sym.slice(0, 4);
     $('s-name').textContent = d.name;
     $('s-sym').textContent = d.sym + ' · ' + d.kind;
