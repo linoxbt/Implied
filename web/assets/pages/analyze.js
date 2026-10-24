@@ -59,8 +59,12 @@
     var n = Object.keys(data.chain.resultByExpiration || {}).length, name = esc(String(data.ticker || 'This chain'));
     if (out.crash) note('err', esc(out.error));
     else if (out.error) note('warn', '<b class="tk">' + name + '</b>: the indicator would show this message instead of a cloud.');
-    else note('ok', '<b class="tk">' + name + '</b> · spot ' + ImpliedCharts.fmtPrice(c.S) + ' · ' + n + ' expirations in the file' + (label ? ' · ' + esc(label) : '') +
-      (c.synthetic ? ' · no closes in the file, so the history is flat' : ''));
+    else {
+      var full = '';
+      try { sessionStorage.setItem('implied:chain', JSON.stringify(data)); full = ' · <a class="link" href="/symbol/?t=custom">Open full charts →</a>'; } catch (e) { /* too large or storage blocked */ }
+      note('ok', '<b class="tk">' + name + '</b> · spot ' + ImpliedCharts.fmtPrice(c.S) + ' · ' + n + ' expirations in the file' + (label ? ' · ' + esc(label) : '') +
+        (c.synthetic ? ' · no closes in the file, so the history is flat' : '') + full);
+    }
   }
 
   function handle(text, label) {

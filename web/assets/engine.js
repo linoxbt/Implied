@@ -224,6 +224,14 @@
     bell: { label: 'Bell curve', S: 100, vol: 25, skew: 0, curv: 0, move: 0, eDay: 9, spreadPct: 2, count: 4 },
   };
 
+  // The website's simulated tickers (clearly not market data): symbol -> preset.
+  var TICKERS = [
+    { sym: 'XERN', name: 'Simulated earnings-week stock', preset: 'earnings', kind: 'Stock' },
+    { sym: 'XIDX', name: 'Simulated index ETF', preset: 'index', kind: 'ETF' },
+    { sym: 'XHIV', name: 'Simulated high-IV stock', preset: 'meme', kind: 'Stock' },
+    { sym: 'XBEL', name: 'Simulated flat-smile stock', preset: 'bell', kind: 'Stock' },
+  ];
+
   // A website market from slider values: { S, vol (%), skew, curv, move (%), eDay, spreadPct (%), seed, weight }
   function synth(params) {
     var S = params.S, r = 0.04;
@@ -265,6 +273,6 @@
   return {
     runCode: runCode, runScript: runScript, limitStrikes: limitStrikes, STYLES: STYLES, MAX_PROJECTION: MAX_PROJECTION,
     rng: rng, trueCall: trueCall, expiryQuotes: expiryQuotes, expiryOf: expiryOf, ticker: ticker, candles: candles,
-    synth: synth, PRESETS: PRESETS, explain: explain, trueDensity: trueDensity,
+    synth: synth, PRESETS: PRESETS, TICKERS: TICKERS, explain: explain, trueDensity: trueDensity,
   };
 });

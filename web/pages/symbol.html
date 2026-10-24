@@ -1,0 +1,56 @@
+<!--{"slug":"symbol","title":"Explore","description":"Implied probability distribution, projection cloud, volatility skew, expected move, the Fork and the option chain for a ticker, computed in your browser by the same script that runs in TrendSpider.","scripts":["core","engine","charts","plot","results","market","pages/symbol"]}-->
+<section class="wrap sym-head">
+  <div class="sym-id"><div class="sym-logo" id="s-logo">—</div><div><h1 id="s-name">Loading…</h1><div class="tkr"><span id="s-sym" class="tk"></span></div></div></div>
+  <div class="quote">
+    <div><div><span class="px" id="s-px">—<small>USD</small></span><span class="chg" id="s-chg"></span></div><div class="meta" id="s-asof"></div>
+      <div class="badges"><span class="badge sim"><i>S</i><span id="s-src">Simulated chain · not market data</span></span><span class="badge mk"><i>i</i>Implied distribution: free, every expiration</span></div></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" data-tab="overview" aria-selected="false">Overview</button>
+    <button role="tab" data-tab="charts" aria-selected="true">Option Charts</button>
+    <button role="tab" data-tab="chain" aria-selected="false">Option Chain</button>
+    <button role="tab" data-tab="ts" aria-selected="false">On TrendSpider</button>
+  </nav>
+</section>
+
+<section class="wrap">
+  <!-- Overview -->
+  <div class="pane" data-pane="overview" hidden>
+    <div class="ranges" id="ov-ranges" role="group" aria-label="Range"><button data-r="21">1M</button><button data-r="63">3M</button><button data-r="126">6M</button><button data-r="252" aria-pressed="true">1Y</button><span class="perf" id="ov-perf"></span></div>
+    <div id="ov-chart"></div>
+    <h2 id="ov-title">Overview</h2>
+    <div class="ov-grid" id="ov-stats"></div>
+    <h2>Implied Overview</h2>
+    <p class="lead" id="ov-text"></p>
+    <div class="ov-grid" id="ov-implied"></div>
+  </div>
+
+  <!-- Option charts -->
+  <div class="pane" data-pane="charts">
+    <div class="chipnav" role="group" aria-label="Chart">
+      <button data-chart="prob" aria-pressed="true">Probability Distribution</button><button data-chart="cloud" aria-pressed="false">Projection Cloud</button><button data-chart="skew" aria-pressed="false">Volatility Skew</button><button data-chart="em" aria-pressed="false">Expected Move</button><button data-chart="fork" aria-pressed="false">The Fork</button>
+    </div>
+    <div id="chart-pane"></div>
+  </div>
+
+  <!-- Option chain -->
+  <div class="pane" data-pane="chain" hidden>
+    <h2><span class="tk" data-sym></span> Option Chain</h2>
+    <p class="lead">Bid and ask for every strike in the expiration, as TrendSpider returns it (40 strikes each side). Highlighted rows are the out-of-the-money quotes Implied used, with the implied volatility it solved.</p>
+    <div class="controls"><label class="ctl-select">Expiration Date <select id="ch-exp"></select></label><span class="muted small" id="ch-info"></span></div>
+    <div class="table-wrap"><table class="data" id="ch-table"></table></div>
+  </div>
+
+  <!-- TrendSpider -->
+  <div class="pane" data-pane="ts" hidden>
+    <h2>See this on your TrendSpider chart</h2>
+    <p class="lead">Implied is a TrendSpider custom indicator. On a Daily chart of any ticker with listed US options, it reads the live chain and paints everything on this page into the future: the percentile bands, the skew in words, and the Fork.</p>
+    <div class="stats">
+      <div class="stat"><b>1 · Copy</b><span><button class="link" style="border:0;background:none;padding:0;cursor:pointer;font:inherit" data-copy>Copy implied.js</button> or <a class="link" href="/implied.js" download>download it</a>.</span></div>
+      <div class="stat"><b>2 · Paste</b><span>Custom JS indicator editor → new → paste → save.</span></div>
+      <div class="stat"><b>3 · Add</b><span>To a Daily chart. Needs TrendSpider's OPRA options data.</span></div>
+    </div>
+    <p class="lead" style="margin-top:22px"><a class="link" href="/install/">Full install guide</a> · <a class="link" href="/how-it-works/">How it works</a></p>
+  </div>
+  <a class="feedback" href="https://github.com/linoxbt/Implied/issues">Give feedback on this chart</a>
+</section>

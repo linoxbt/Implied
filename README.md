@@ -16,6 +16,7 @@ Implied is a free, open-source [TrendSpider](https://trendspider.com) custom ind
 
 | Page | What it does |
 | --- | --- |
+| [Explore](https://implied.netlify.app/symbol/?t=XERN) | A ticker page for each simulated chain (or your own): implied vs lognormal probability distribution with a probability table, projection cloud, volatility skew, expected move, Fork detection, and the option chain |
 | [Lab](https://implied.netlify.app/lab/) | Shape a market (volatility, skew, an earnings jump, spreads) and watch the script repaint |
 | [The Fork](https://implied.netlify.app/fork/) | Build a two-outcome market and watch the detector apply its three rules |
 | [Analyze](https://implied.netlify.app/analyze/) | Drop a chain saved from TrendSpider and see what Implied would paint on it |

@@ -3,7 +3,7 @@
 (function (global) {
   'use strict';
   var NS = 'http://www.w3.org/2000/svg';
-  var C = { bg: '#0f1218', grid: 'rgba(255,255,255,.06)', axis: '#8d919b', price: '#e6e8ec', band: '#5b8def', median: '#9aa0b4', fork: '#ffb347', valley: '#7d8296', truth: 'rgba(255,255,255,.75)', dropped: '#4a4f5a', bell: '#ff7a90' };
+  var C = { bg: '#ffffff', grid: '#eef1f5', axis: '#6b7280', price: '#111827', band: '#3b82f6', median: '#64748b', fork: '#f59e0b', valley: '#94a3b8', truth: 'rgba(15,23,42,.55)', dropped: '#cbd5e1', bell: '#ec4899' };
   var QLABEL = ['2.5%', '10%', '25%', 'Median', '75%', '90%', '97.5%'];
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -114,8 +114,8 @@
       }
       // projection zone
       if (L) {
-        el('rect', { x: X(fx), y: pad.t, width: X(total) - X(fx), height: h - pad.t - pad.b, fill: 'rgba(91,141,239,.035)' }, svg);
-        el('line', { x1: X(fx), x2: X(fx), y1: pad.t, y2: h - pad.b, stroke: 'rgba(255,255,255,.18)', 'stroke-dasharray': '3 4' }, svg);
+        el('rect', { x: X(fx), y: pad.t, width: X(total) - X(fx), height: h - pad.t - pad.b, fill: 'rgba(59,130,246,.04)' }, svg);
+        el('line', { x1: X(fx), x2: X(fx), y1: pad.t, y2: h - pad.b, stroke: 'rgba(15,23,42,.18)', 'stroke-dasharray': '3 4' }, svg);
         el('text', { x: X(fx) + 8, y: pad.t + 12, fill: C.axis, 'font-size': 11 }, svg).textContent = 'Projection →';
       }
       // fills
@@ -144,7 +144,7 @@
         if (last != null) el('text', { x: X(total) - 4, y: Y(last) + (side === 'hi' ? -7 : 14), fill: C.bell, 'font-size': 11, 'text-anchor': 'end' }, svg).textContent = 'Bell curve ' + (side === 'hi' ? '97.5%' : '2.5%');
       });
       // hover
-      var cross = el('line', { y1: pad.t, y2: h - pad.b, stroke: 'rgba(255,255,255,.35)', visibility: 'hidden' }, svg);
+      var cross = el('line', { y1: pad.t, y2: h - pad.b, stroke: 'rgba(15,23,42,.35)', visibility: 'hidden' }, svg);
       var dots = bands.map(function (_, j) { return el('circle', { r: j === 3 ? 3.5 : 2.5, fill: j === 3 ? C.median : C.band, visibility: 'hidden' }, svg); });
       var hd = el('circle', { r: 3.5, fill: C.price, visibility: 'hidden' }, svg);
       function move(ev) {
@@ -214,7 +214,7 @@
       el('line', { x1: X(q[3]), x2: X(q[3]), y1: pad.t, y2: h - pad.b, stroke: C.median, 'stroke-dasharray': '2 4', 'stroke-width': 1.5 }, svg);
       el('text', { x: X(q[3]) + 6, y: h - pad.b - 8, fill: C.median, 'font-size': 11 }, svg).textContent = 'median ' + fmtPrice(q[3]);
       if (opts.spot) {
-        el('line', { x1: X(opts.spot), x2: X(opts.spot), y1: h - pad.b - 8, y2: h - pad.b, stroke: '#fff', 'stroke-width': 2 }, svg);
+        el('line', { x1: X(opts.spot), x2: X(opts.spot), y1: h - pad.b - 8, y2: h - pad.b, stroke: C.price, 'stroke-width': 2 }, svg);
       }
       if (opts.fork) {
         [['high', C.fork], ['low', C.fork], ['valley', C.valley]].forEach(function (m) {
@@ -224,8 +224,8 @@
           if (!crowded) el('text', { x: X(v), y: pad.t + 10, fill: m[1], 'font-size': 11, 'text-anchor': 'middle', 'font-weight': 600 }, svg).textContent = m[0] === 'valley' ? 'least likely' : fmtPrice(v);
         });
       }
-      el('line', { x1: pad.l, x2: w - pad.r, y1: h - pad.b, y2: h - pad.b, stroke: 'rgba(255,255,255,.2)' }, svg);
-      var cross = el('line', { y1: pad.t, y2: h - pad.b, stroke: 'rgba(255,255,255,.35)', visibility: 'hidden' }, svg);
+      el('line', { x1: pad.l, x2: w - pad.r, y1: h - pad.b, y2: h - pad.b, stroke: 'rgba(15,23,42,.2)' }, svg);
+      var cross = el('line', { y1: pad.t, y2: h - pad.b, stroke: 'rgba(15,23,42,.35)', visibility: 'hidden' }, svg);
       function move(ev) {
         var r = svg.getBoundingClientRect(), x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left, y = (ev.touches ? ev.touches[0].clientY : ev.clientY) - r.top;
         var v = x0 + (x - pad.l) / (w - pad.l - pad.r) * (x1 - x0);
@@ -261,15 +261,15 @@
       niceTicks(kx0, kx1, w < 500 ? 4 : 7).forEach(function (v) {
         el('text', { x: X(v), y: h - 12, fill: C.axis, 'font-size': 11, 'text-anchor': 'middle' }, svg).textContent = fmtAxis(v, kx1 - kx0);
       });
-      el('line', { x1: X(F), x2: X(F), y1: pad.t, y2: h - pad.b, stroke: 'rgba(255,255,255,.2)', 'stroke-dasharray': '3 4' }, svg);
+      el('line', { x1: X(F), x2: X(F), y1: pad.t, y2: h - pad.b, stroke: 'rgba(15,23,42,.2)', 'stroke-dasharray': '3 4' }, svg);
       el('text', { x: X(F) + 6, y: pad.t + 10, fill: C.axis, 'font-size': 11 }, svg).textContent = 'forward';
       pts.forEach(function (p) {
         var sdIv = p.sdw / (2 * p.iv * T) * 100;
-        el('line', { x1: X(p.K), x2: X(p.K), y1: Y(p.iv * 100 + sdIv), y2: Y(p.iv * 100 - sdIv), stroke: 'rgba(255,255,255,.28)' }, svg);
-        el('circle', { cx: X(p.K), cy: Y(p.iv * 100), r: 2.6, fill: p.K < F ? '#ff8a8a' : '#8ad3ff' }, svg);
+        el('line', { x1: X(p.K), x2: X(p.K), y1: Y(p.iv * 100 + sdIv), y2: Y(p.iv * 100 - sdIv), stroke: 'rgba(15,23,42,.28)' }, svg);
+        el('circle', { cx: X(p.K), cy: Y(p.iv * 100), r: 2.6, fill: p.K < F ? '#dc2626' : '#2563eb' }, svg);
       });
       if (fit.length) el('polyline', { points: fit.map(function (f) { return X(f[0]).toFixed(1) + ',' + Y(f[1]).toFixed(1); }).join(' '), fill: 'none', stroke: C.fork, 'stroke-width': 2.4 }, svg);
-      var cross = el('line', { y1: pad.t, y2: h - pad.b, stroke: 'rgba(255,255,255,.35)', visibility: 'hidden' }, svg);
+      var cross = el('line', { y1: pad.t, y2: h - pad.b, stroke: 'rgba(15,23,42,.35)', visibility: 'hidden' }, svg);
       function move(ev) {
         var r = svg.getBoundingClientRect(), x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left, y = (ev.touches ? ev.touches[0].clientY : ev.clientY) - r.top;
         var best = null;
@@ -306,13 +306,13 @@
       niceTicks(kx0, kx1, w < 500 ? 4 : 7).forEach(function (v) {
         el('text', { x: X(v), y: h - 12, fill: C.axis, 'font-size': 11, 'text-anchor': 'middle' }, svg).textContent = fmtAxis(v, kx1 - kx0);
       });
-      el('line', { x1: X(F), x2: X(F), y1: pad.t, y2: h - pad.b, stroke: 'rgba(255,255,255,.2)', 'stroke-dasharray': '3 4' }, svg);
+      el('line', { x1: X(F), x2: X(F), y1: pad.t, y2: h - pad.b, stroke: 'rgba(15,23,42,.2)', 'stroke-dasharray': '3 4' }, svg);
       var bw = Math.max(2, (w - pad.l - pad.r) / rows.length * 0.55);
       rows.forEach(function (r) {
-        var col = !r.kept ? C.dropped : r.put ? '#ff8a8a' : '#8ad3ff';
+        var col = !r.kept ? C.dropped : r.put ? '#dc2626' : '#2563eb';
         el('rect', { x: X(r.K) - bw / 2, y: Y(r.a), width: bw, height: Math.max(1.5, Y(r.b) - Y(r.a)), fill: col, rx: Math.min(2, bw / 2) }, svg);
       });
-      var cross = el('line', { y1: pad.t, y2: h - pad.b, stroke: 'rgba(255,255,255,.35)', visibility: 'hidden' }, svg);
+      var cross = el('line', { y1: pad.t, y2: h - pad.b, stroke: 'rgba(15,23,42,.35)', visibility: 'hidden' }, svg);
       function move(ev) {
         var rc = svg.getBoundingClientRect(), x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rc.left, y = (ev.touches ? ev.touches[0].clientY : ev.clientY) - rc.top;
         var best = null;
