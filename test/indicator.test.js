@@ -187,8 +187,11 @@ test('0-DTE expiries are dropped; missing or junk expiries are replaced by neigh
 
 test('spot price missing from the chain falls back to the last close', async () => {
   const { schedule, chain } = fx.SCENARIOS.SPY();
-  const out = await runIndicator({ ticker: 'SPY', schedule, chain: { ...chain, underlyingSymbolQuote: {} }, ...fx.candles(580) });
+  const c = fx.candles(580);
+  const out = await runIndicator({ ticker: 'SPY', schedule, chain: { ...chain, underlyingSymbolQuote: {} }, ...c });
+  const ref = await runIndicator({ ticker: 'SPY', schedule, chain, ...c });
   assert.equal(out.error, null);
+  assert.deepEqual(out.projections[3].series, ref.projections[3].series, 'same cloud as with the quoted spot');
 });
 
 test('declares exactly five settings with the spec defaults', async () => {
@@ -198,7 +201,7 @@ test('declares exactly five settings with the spec defaults', async () => {
     ['number', 'Min usable strikes per expiry', 8], ['boolean', 'Show Fork', true]]);
 });
 
-test('performance: 8 expiries model and paint well under a second, one request of each kind', async () => {
+test('performance: 8 expiries model and paint inside the spec\'s 3-second budget, one request of each kind', async () => {
   const { schedule, chain } = fx.ticker({
     S: 450, spreadPct: 0.02,
     expiries: [3, 7, 14, 21, 28, 45, 63, 91].map(dte => ({ dte, model: { kind: 'smile', atm: 0.25, skew: -0.4, curv: 1 } })),

@@ -30,6 +30,14 @@ const TICKERS = require('../web/assets/engine.js').TICKERS;
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const burst = Array.from({ length: 28 }, (_, i) => { const a = Math.PI * i / 14, r = i % 2 ? 41 : 50; return (50 + r * Math.cos(a)).toFixed(1) + ',' + (50 + r * Math.sin(a)).toFixed(1); }).join(' ');
 
+// Stress-run numbers, from docs/stress.json (written by `npm run stress -- --write`).
+const STRESS = JSON.parse(fs.readFileSync(path.join(root, 'docs/stress.json'), 'utf8'));
+function stressValue(k) {
+  const v = { FOUND: STRESS.forkFound, CASES: STRESS.forkCases, FALSE: STRESS.falseForks, MODELLED: STRESS.oneOutcomeModelled }[k];
+  if (v == null) throw new Error('unknown stress token ' + k);
+  return v.toLocaleString('en-US');
+}
+
 function testList() {
   const rows = [];
   for (const f of fs.readdirSync(path.join(root, 'test')).filter(f => f.endsWith('.test.js')).sort()) {
@@ -166,7 +174,7 @@ function main() {
     const m = src.match(/^<!--(\{[\s\S]*?\})-->\n/);
     if (!m) throw new Error(f + ': missing page metadata comment');
     const meta = JSON.parse(m[1]);
-    const body = src.slice(m[0].length).replace('%%BURST%%', burst).replace('%%TESTS%%', testList());
+    const body = src.slice(m[0].length).replace('%%BURST%%', burst).replace('%%TESTS%%', testList()).replace(/%%STRESS_(\w+)%%/g, (m, k) => stressValue(k));
     for (const s of meta.scripts || []) if (!fs.existsSync(path.join(out, 'assets', s + '.js'))) throw new Error(f + ': missing script ' + s);
     const file = meta.file ? path.join(out, meta.file) : path.join(out, meta.slug, 'index.html');
     fs.mkdirSync(path.dirname(file), { recursive: true });

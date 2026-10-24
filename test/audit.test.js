@@ -85,13 +85,14 @@ test('arbitrage-free smoothing: a 110% vol, 91-day chain gives no false Fork', (
   assert.ok(shape.d.arbitrage <= core.MAX_ARBITRAGE);
 });
 
-test('risk-free rate moves the parity forward as it should', () => {
+test('risk-free rate enters the parity forward through the discount factor', () => {
   const S = 250, T = 60 / 365, q = 0.02;
   const { byStrike, F } = fx.expiryQuotes({ S, r, q, T, model: fx.smile(0.3, -0.3), spreadPct: 0.01, noise: 0, seed: 2 });
-  near(core.cleanExpiry(byStrike, S, T, r, 0.5).F / F, 1, 0.001, 'right rate');
-  // With r = 0 the discount is wrong: F = K + (C - P) shifts by (C - P)(1 - D) ~ 0 near the money,
-  // but the fitted prices are discounted differently; the rebuilt forward must stay within 0.5%.
-  near(core.cleanExpiry(byStrike, S, T, 0, 0.5).F / F, 1, 0.005, 'zero rate');
+  const right = core.cleanExpiry(byStrike, S, T, r, 0.5).F, zero = core.cleanExpiry(byStrike, S, T, 0, 0.5).F;
+  near(right / F, 1, 0.001, 'right rate recovers the forward');
+  // F = K + (C - P) / D: a wrong rate moves it by (C - P)(1/D - 1), small near the money but not zero.
+  assert.notEqual(zero, right, 'the rate is used');
+  near(zero / F, 1, 0.005, 'and a wrong rate stays within 0.5%');
 });
 
 test("Lee's bound: extrapolated wings never steeper than |dw/dk| = 2 and never turn back", () => {
@@ -181,14 +182,14 @@ test('expiry plan picks the nearest expiry to each horizon', () => {
   assert.deepEqual(plan, [6, 13, 30, 58]);
 });
 
-test('fitting is fast: under 10 ms per expiry on a liquid chain', () => {
+test('fitting is fast: under 50 ms per expiry on a liquid chain (about 5 ms alone; loose for busy CI runners)', () => {
   const T = 28 / 365, { byStrike } = fx.expiryQuotes({ S: 580, r, T, model: fx.smile(0.16, -0.35, 0.6), spreadPct: 0.02, step: 1, seed: 1 });
   const pts = core.cleanExpiry(byStrike, 580, T, r, 0.5).pts;
   core.fitSmile(pts, T);
   const t0 = process.hrtime.bigint();
   for (let i = 0; i < 20; i++) core.fitSmile(pts, T);
   const ms = Number(process.hrtime.bigint() - t0) / 1e6 / 20;
-  assert.ok(ms < 10, `${ms.toFixed(1)} ms`);
+  assert.ok(ms < 50, `${ms.toFixed(1)} ms`);
 });
 
 // ---------- Mutation-testing gaps: each of these pins one rule that a

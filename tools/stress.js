@@ -30,4 +30,12 @@ for (let seed = 1; seed <= 30; seed++) {
 console.log(`two-outcome expiries: Fork found in ${hits}/${tot}`);
 console.log(`one-outcome expiries: ${falses} false Forks in ${ftot} modelled (${skipped} skipped as too thin)`);
 console.log(`${((Date.now() - t0) / 1000).toFixed(1)} s`);
+// The README and the website quote these numbers; `--write` records them in
+// docs/stress.json (CI fails if that file is out of date, and a test checks
+// every page and the README against it).
+if (process.argv.includes('--write')) {
+  const file = require('path').join(__dirname, '../docs/stress.json');
+  require('fs').writeFileSync(file, JSON.stringify({ forkFound: hits, forkCases: tot, falseForks: falses, oneOutcomeModelled: ftot, skipped }, null, 2) + '\n');
+  console.log('wrote docs/stress.json');
+}
 process.exit(hits / tot >= 0.95 && falses === 0 ? 0 : 1);

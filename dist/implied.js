@@ -425,13 +425,22 @@ function fork(d, F, strikes) {
   return forkDiagnostics(d, F, strikes).fork;
 }
 
+// Skew ratio: upside tail over downside tail, measured in log price
+// (ln(q97.5/q50) / ln(q50/q2.5)), so a plain lognormal with no skew reads 1.
+// Tail weights: the probability below 0.9 F and above 1.1 F. `quoted` is the
+// strike range the quotes cover and `coverage` the probability inside it;
+// bands beyond it come from the smile's extrapolated wings.
 function describeShape(d, F, strikes) {
   const q = QS.map(p => quantile(d, p));
   const q025 = q[0], q50 = q[3], q975 = q[6];
+  const lo = strikes && strikes.length ? strikes[0] : q025, hi = strikes && strikes.length ? strikes[strikes.length - 1] : q975;
   return {
     q,
     fork: fork(d, F, strikes),
-    skew: (q975 - q50) / ((q50 - q025) || 1e-12),
+    skew: Math.log(q975 / q50) / (Math.log(q50 / q025) || 1e-12),
+    tails: { below: cdfAt(d, 0.9 * F), above: 1 - cdfAt(d, 1.1 * F) },
+    quoted: { lo, hi },
+    coverage: cdfAt(d, hi) - cdfAt(d, lo),
   };
 }
 
@@ -439,11 +448,26 @@ function describeShape(d, F, strikes) {
 // and by the website's step-by-step views). `ok` is false, with a `reason`,
 // when the expiry is too thin, its forward is unusable, or its density does
 // not hold the market's probability.
+const OUTLIER_Z = 5;
+
 function fitExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
-  const { F, D, pts } = cleanExpiry(byStrike, S, T, r, maxSpread);
-  const out = { F, D, pts, smile: null, d: null, ok: false, reason: '' };
+  const clean = cleanExpiry(byStrike, S, T, r, maxSpread);
+  const { F, D } = clean;
+  let pts = clean.pts;
+  const out = { F, D, pts, smile: null, d: null, ok: false, reason: '', dropped: 0 };
   if (!(F > 0)) { out.reason = 'no usable forward'; return out; }
   if (pts.length < minStrikes) { out.reason = 'too few liquid strikes'; return out; }
+  // Robust pass: a stale quote with a tight spread gets a high weight and can
+  // bend the smile into a false second peak. Quotes more than OUTLIER_Z of
+  // their own noise (and 3x the typical misfit) away from a first fit are
+  // dropped before the real fit.
+  const first = fitSmile(pts, T, 1);
+  if (first) {
+    const z = pts.map(p => Math.abs(p.w - first(p.k)) / p.sdw);
+    const cut = Math.max(OUTLIER_Z, 3 * median(z));
+    const kept = pts.filter((p, i) => z[i] <= cut);
+    if (kept.length >= minStrikes && kept.length < pts.length) { out.dropped = pts.length - kept.length; pts = kept; out.pts = pts; }
+  }
   // Start from the smoothing GCV picks; if the implied density still has
   // butterfly arbitrage (negative probability), smooth harder until it does
   // not. Tiny ripples in a high-volatility smile are amplified by the second
@@ -454,11 +478,18 @@ function fitExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
     out.d = density(F, T, D, out.smile);
     if (out.d && out.d.arbitrage <= MAX_ARBITRAGE) break;
   }
-  if (!out.d) out.reason = 'no density';
-  else if (out.d.arbitrage > MAX_ARBITRAGE) out.reason = 'quotes imply negative probability';
-  else if (Math.abs(out.d.mass - 1) > MAX_MASS_ERROR) out.reason = 'probability does not add up';
-  else out.ok = true;
+  out.reason = densityProblem(out.d) || '';
+  out.ok = !out.reason;
   return out;
+}
+
+// Why a density cannot be used, or null: missing, negative probability left
+// after the smoothing passes, or total probability far from 1.
+function densityProblem(d) {
+  if (!d) return 'no density';
+  if (d.arbitrage > MAX_ARBITRAGE) return 'quotes imply negative probability';
+  if (Math.abs(d.mass - 1) > MAX_MASS_ERROR) return 'probability does not add up';
+  return null;
 }
 
 // One expiry -> its shape (with its density and quoted strikes), or null.
@@ -475,6 +506,12 @@ function modelExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
 // every calendar day is a bar (what TrendSpider's own Expected Move script
 // assumes); in 'trading' mode only weekdays are bars. t is always calendar
 // time in years, so the model's clock is the same either way.
+// NYSE full-day closures (trading mode only).
+const MARKET_HOLIDAYS = new Set([
+  '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
+  '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18', '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24',
+]);
+
 function projectionTimeline(mode, lastTimeSec, maxDays) {
   const times = [0], barOfDay = { 0: 0 };
   if (mode !== 'trading') {
@@ -485,8 +522,8 @@ function projectionTimeline(mode, lastTimeSec, maxDays) {
   const start = new Date(Number.isFinite(ms) ? ms : Date.now());
   let bar = 0;
   for (let d = 1; d <= maxDays; d++) {
-    const dow = new Date(start.getTime() + d * 86400000).getUTCDay();
-    if (dow !== 0 && dow !== 6) { bar++; times.push(d / 365); }
+    const day = new Date(start.getTime() + d * 86400000), dow = day.getUTCDay();
+    if (dow !== 0 && dow !== 6 && !MARKET_HOLIDAYS.has(day.toISOString().slice(0, 10))) { bar++; times.push(d / 365); }
     barOfDay[d] = bar;
   }
   return { times, barOfDay };
@@ -518,7 +555,8 @@ function projectQuantiles(shapes, S, anchor, times) {
       lv = ell[p] + a * (ell[n] - ell[p]);
       uv = u[n].map((un, j) => u[p][j] + a * (un - u[p][j]));
     }
-    const vals = uv.map(x => anchor * Math.exp(lv + x * Math.sqrt(t))).sort((a, b) => a - b);
+    // A blend of two sorted quantile vectors is sorted, so the bands never cross.
+    const vals = uv.map(x => anchor * Math.exp(lv + x * Math.sqrt(t)));
     vals.forEach((v, j) => lines[j].push(v));
   }
   return lines;
@@ -559,6 +597,9 @@ function expiryPlan(days, count) {
 // `day` is calendar days from the last candle: from the expiry's timestamp
 // when given, so weekends and holidays between the last bar and today don't
 // shift the cloud; otherwise its days-to-expiry.
+// The Fork scan covers the nearest expiries only: a two-outcome event is
+// sharpest at the first expiries after it and blurs out beyond a few weeks.
+const FORK_SCAN_MAX = 10, FORK_SCAN_DAYS = 21;
 const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
 function selectExpiries(o) {
   const chainByKey = {};
@@ -569,10 +610,13 @@ function selectExpiries(o) {
     const m = MONTHS[String(x.month || '').slice(0, 3).toLowerCase()] || Number(x.month);
     return x.year > 0 && m > 0 && x.day > 0 ? pad(x.year % 100) + pad(m) + pad(x.day) : null;
   };
+  // Calendar dates (UTC) of the expiry and the last candle, so the time of
+  // day either is stamped at doesn't move the cloud by a bar.
+  const dayNo = t => Math.floor((t > 1e12 ? t / 1000 : t) / 86400);
   const daysOut = x => {
     const ts = Number(x.timestamp);
     if (ts > 0 && o.lastTime > 0) {
-      const d = Math.round((ts - o.lastTime) / 86400);
+      const d = dayNo(ts) - dayNo(o.lastTime);
       if (d >= 1) return d;
     }
     return Number(x.dte);
@@ -601,15 +645,31 @@ function selectExpiries(o) {
   };
   const chosen = new Set();
   if (candidates.length) {
+    // The nearest expiry that models is always drawn: it is where a
+    // post-earnings Fork is sharpest.
+    for (let i = 0; i < Math.min(4, candidates.length); i++) if (shapeOf(i)) { chosen.add(i); break; }
     for (const order of expiryPlan(candidates.map(c => c.day), o.count)) {
       for (const i of order.slice(0, 4)) {
         if (chosen.has(i)) continue;
         if (shapeOf(i)) { chosen.add(i); break; }
       }
     }
+    // Any other expiry inside the cloud that prices two outcomes is added, so
+    // the Fork is never lost between the horizons.
+    const lastDay = Math.max(-1, ...[...chosen].map(i => candidates[i].day));
+    let scanned = 0;
+    for (let i = 0; i < candidates.length && candidates[i].day <= Math.min(lastDay, FORK_SCAN_DAYS) && scanned < FORK_SCAN_MAX; i++) {
+      if (chosen.has(i)) continue;
+      scanned++;
+      const s = shapeOf(i);
+      if (s && s.fork) chosen.add(i);
+    }
   }
   const shapes = [...chosen].map(i => modelled.get(i)).sort((a, b) => a.day - b.day);
-  return { candidates, shapes };
+  // The chain's own spot: the nearest expiry's parity forward, discounted.
+  // Unlike the quoted last price it cannot be a stale or after-hours print.
+  const spot = shapes.length ? shapes[0].F * Math.exp(-o.rate * shapes[0].T) : o.spot;
+  return { candidates, shapes, spot };
 }
 
 // ---------- Labels ----------
@@ -674,10 +734,15 @@ async function buildCloud() {
   need(String(current.resolution).toUpperCase() === 'D', 'Implied runs on the Daily timeframe only.');
   const lastClose = Number(close[close.length - 1]);
   need(lastClose > 0, 'Implied needs price history on the chart.');
-  const [schedule, chain] = await Promise.all([
-    request.options_schedule(current.ticker),
-    request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a'], 'all'),
-  ]);
+  let schedule, chain;
+  try {
+    [schedule, chain] = await Promise.all([
+      request.options_schedule(current.ticker),
+      request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a'], 'all'),
+    ]);
+  } catch (err) {
+    need(false, NO_DATA + ' (' + String((err && err.message) || err) + ')'); // a failed request, not a crash
+  }
   need(schedule && !schedule.error && Array.isArray(schedule) && schedule.length > 0,
     NO_DATA + (schedule && schedule.error ? ' (' + schedule.error + ')' : ''));
   need(chain && !chain.error && chain.resultByExpiration,
@@ -685,28 +750,29 @@ async function buildCloud() {
 
   const quotedSpot = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
   const spot = quotedSpot > 0 ? quotedSpot : lastClose;
-  const lastTimeRaw = Number(time[time.length - 1]);
-  const lastTime = lastTimeRaw > 1e12 ? lastTimeRaw / 1000 : lastTimeRaw; // seconds
+  const lastTime = Number(time[time.length - 1]); // seconds or milliseconds; core handles both
 
   // Expiries are matched to the chain on a normalized YYMMDD key and placed by
   // their own timestamp; for each target horizon the nearest expiry that
   // models cleanly is kept (see selectExpiries in core). A ticker with an
   // expiry every weekday still gets a cloud that reaches weeks out.
-  const { candidates, shapes } = selectExpiries({
+  const { candidates, shapes, spot: chainSpot } = selectExpiries({
     schedule, resultByExpiration: chain.resultByExpiration, spot, lastTime, rate: RATE,
     maxSpread: MAX_SPREAD, minStrikes: MIN_STRIKES, count: EXPIRIES, maxBars: MAX_PROJECTION, mode: PROJECTION_DAYS,
   });
-  need(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + ' days.');
+  need(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + (PROJECTION_DAYS === 'trading' ? ' trading days.' : ' days.'));
   need(shapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
 
   // The model's clock (T) runs from now; the chart's runs from the last
   // candle, so each expiry is placed at its own day offset. The cloud starts
   // at the last close; every price shown (bands, Fork ticks, summary panel)
-  // is on that same footing, scaled by lastClose / spot.
+  // is on that same footing, scaled by lastClose / the chain's own spot (its
+  // nearest parity forward, discounted), never by a stale quoted price.
   const timeline = projectionTimeline(PROJECTION_DAYS, lastTime, shapes[shapes.length - 1].day);
   const placed = shapes.map(s => ({ F: s.F, q: s.q, T: s.day / 365 }));
-  const bands = projectQuantiles(placed, spot, lastClose, timeline.times).map(vals => vals.slice(0, MAX_PROJECTION));
-  return { problem: null, shapes, timeline, bands, scale: lastClose / spot };
+  // Candidates were limited to bars below MAX_PROJECTION, so every series fits.
+  const bands = projectQuantiles(placed, chainSpot, lastClose, timeline.times);
+  return { problem: null, shapes, timeline, bands, scale: lastClose / chainSpot };
 }
 
 let cloud;
@@ -775,7 +841,7 @@ function summaryOverlay(s, all) {
   const d = densityFor(s);
   const tag = skewTag(all[all.length - 1].skew);
   const rows = [
-    { cells: [text('IMPLIED · ' + s.dte + '-DAY DISTRIBUTION', { fontWeight: '600', color: 'var(--text-accent-color)', paddingTop: '8px' })] },
+    { cells: [text('IMPLIED · ' + s.day + '-DAY DISTRIBUTION', { fontWeight: '600', color: 'var(--text-accent-color)', paddingTop: '8px' })] },
   ];
   if (d) {
     rows.push({ cells: [{ padding: '0 6px', chart: {
@@ -785,10 +851,16 @@ function summaryOverlay(s, all) {
     } }] });
   }
   rows.push({ cells: [text('Median ' + formatPrice(s.q[3] * SCALE) + ' · 95% range ' + formatPrice(s.q[0] * SCALE) + ' – ' + formatPrice(s.q[6] * SCALE))] });
-  rows.push({ cells: [text(tag ? tag + ' (to ' + all[all.length - 1].dte + (all[all.length - 1].dte === 1 ? ' day)' : ' days)') : 'Close to symmetric')] });
+  const farDay = all[all.length - 1].day;
+  rows.push({ cells: [text(tag ? tag + ' (to ' + farDay + (farDay === 1 ? ' day)' : ' days)') : 'Close to symmetric')] });
+  rows.push({ cells: [text('Below ' + formatPrice(0.9 * s.F * SCALE) + ': ' + pct(s.tails.below) + ' · above ' + formatPrice(1.1 * s.F * SCALE) + ': ' + pct(s.tails.above))] });
   if (SHOW_FORK && s.fork) {
     const f = { low: s.fork.low * SCALE, high: s.fork.high * SCALE, valley: s.fork.valley * SCALE };
     rows.push({ cells: [text(forkLabel(f), { color: COLORS.fork, fontWeight: '600' })] });
+  }
+  // Bands beyond the quoted strikes come from the smile's extrapolated wings.
+  if (s.q[0] < s.quoted.lo || s.q[6] > s.quoted.hi) {
+    rows.push({ cells: [text('Quotes cover ' + formatPrice(s.quoted.lo * SCALE) + ' – ' + formatPrice(s.quoted.hi * SCALE) + '; the tails beyond are extrapolated.', { fontSize: '10px', opacity: 0.75 })] });
   }
   rows.push({ cells: [text('Risk-neutral: the price of each outcome, not a forecast.', { fontSize: '10px', opacity: 0.6, paddingBottom: '8px' })] });
   return { background: 'var(--background-color)', border: 'solid 1px var(--border-color)', borderRadius: '8px', rows };
@@ -796,6 +868,8 @@ function summaryOverlay(s, all) {
 
 // The expiry's density (already computed by modelExpiry), resampled to 40
 // points between its 1st and 99th percentile for the overlay chart.
+function pct(p) { return p < 0.01 ? '<1%' : Math.round(p * 100) + '%'; }
+
 function densityFor(s) {
   const d = s.d;
   if (!d) return null;

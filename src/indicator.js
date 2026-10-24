@@ -42,10 +42,15 @@ async function buildCloud() {
   need(String(current.resolution).toUpperCase() === 'D', 'Implied runs on the Daily timeframe only.');
   const lastClose = Number(close[close.length - 1]);
   need(lastClose > 0, 'Implied needs price history on the chart.');
-  const [schedule, chain] = await Promise.all([
-    request.options_schedule(current.ticker),
-    request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a'], 'all'),
-  ]);
+  let schedule, chain;
+  try {
+    [schedule, chain] = await Promise.all([
+      request.options_schedule(current.ticker),
+      request.options_data_for_all_expirations(current.ticker, STRIKES_EACH_SIDE, ['b', 'a'], 'all'),
+    ]);
+  } catch (err) {
+    need(false, NO_DATA + ' (' + String((err && err.message) || err) + ')'); // a failed request, not a crash
+  }
   need(schedule && !schedule.error && Array.isArray(schedule) && schedule.length > 0,
     NO_DATA + (schedule && schedule.error ? ' (' + schedule.error + ')' : ''));
   need(chain && !chain.error && chain.resultByExpiration,
@@ -53,28 +58,29 @@ async function buildCloud() {
 
   const quotedSpot = Number(chain.underlyingSymbolQuote && chain.underlyingSymbolQuote.lastPrice);
   const spot = quotedSpot > 0 ? quotedSpot : lastClose;
-  const lastTimeRaw = Number(time[time.length - 1]);
-  const lastTime = lastTimeRaw > 1e12 ? lastTimeRaw / 1000 : lastTimeRaw; // seconds
+  const lastTime = Number(time[time.length - 1]); // seconds or milliseconds; core handles both
 
   // Expiries are matched to the chain on a normalized YYMMDD key and placed by
   // their own timestamp; for each target horizon the nearest expiry that
   // models cleanly is kept (see selectExpiries in core). A ticker with an
   // expiry every weekday still gets a cloud that reaches weeks out.
-  const { candidates, shapes } = selectExpiries({
+  const { candidates, shapes, spot: chainSpot } = selectExpiries({
     schedule, resultByExpiration: chain.resultByExpiration, spot, lastTime, rate: RATE,
     maxSpread: MAX_SPREAD, minStrikes: MIN_STRIKES, count: EXPIRIES, maxBars: MAX_PROJECTION, mode: PROJECTION_DAYS,
   });
-  need(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + ' days.');
+  need(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + (PROJECTION_DAYS === 'trading' ? ' trading days.' : ' days.'));
   need(shapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
 
   // The model's clock (T) runs from now; the chart's runs from the last
   // candle, so each expiry is placed at its own day offset. The cloud starts
   // at the last close; every price shown (bands, Fork ticks, summary panel)
-  // is on that same footing, scaled by lastClose / spot.
+  // is on that same footing, scaled by lastClose / the chain's own spot (its
+  // nearest parity forward, discounted), never by a stale quoted price.
   const timeline = projectionTimeline(PROJECTION_DAYS, lastTime, shapes[shapes.length - 1].day);
   const placed = shapes.map(s => ({ F: s.F, q: s.q, T: s.day / 365 }));
-  const bands = projectQuantiles(placed, spot, lastClose, timeline.times).map(vals => vals.slice(0, MAX_PROJECTION));
-  return { problem: null, shapes, timeline, bands, scale: lastClose / spot };
+  // Candidates were limited to bars below MAX_PROJECTION, so every series fits.
+  const bands = projectQuantiles(placed, chainSpot, lastClose, timeline.times);
+  return { problem: null, shapes, timeline, bands, scale: lastClose / chainSpot };
 }
 
 let cloud;
@@ -143,7 +149,7 @@ function summaryOverlay(s, all) {
   const d = densityFor(s);
   const tag = skewTag(all[all.length - 1].skew);
   const rows = [
-    { cells: [text('IMPLIED · ' + s.dte + '-DAY DISTRIBUTION', { fontWeight: '600', color: 'var(--text-accent-color)', paddingTop: '8px' })] },
+    { cells: [text('IMPLIED · ' + s.day + '-DAY DISTRIBUTION', { fontWeight: '600', color: 'var(--text-accent-color)', paddingTop: '8px' })] },
   ];
   if (d) {
     rows.push({ cells: [{ padding: '0 6px', chart: {
@@ -153,10 +159,16 @@ function summaryOverlay(s, all) {
     } }] });
   }
   rows.push({ cells: [text('Median ' + formatPrice(s.q[3] * SCALE) + ' · 95% range ' + formatPrice(s.q[0] * SCALE) + ' – ' + formatPrice(s.q[6] * SCALE))] });
-  rows.push({ cells: [text(tag ? tag + ' (to ' + all[all.length - 1].dte + (all[all.length - 1].dte === 1 ? ' day)' : ' days)') : 'Close to symmetric')] });
+  const farDay = all[all.length - 1].day;
+  rows.push({ cells: [text(tag ? tag + ' (to ' + farDay + (farDay === 1 ? ' day)' : ' days)') : 'Close to symmetric')] });
+  rows.push({ cells: [text('Below ' + formatPrice(0.9 * s.F * SCALE) + ': ' + pct(s.tails.below) + ' · above ' + formatPrice(1.1 * s.F * SCALE) + ': ' + pct(s.tails.above))] });
   if (SHOW_FORK && s.fork) {
     const f = { low: s.fork.low * SCALE, high: s.fork.high * SCALE, valley: s.fork.valley * SCALE };
     rows.push({ cells: [text(forkLabel(f), { color: COLORS.fork, fontWeight: '600' })] });
+  }
+  // Bands beyond the quoted strikes come from the smile's extrapolated wings.
+  if (s.q[0] < s.quoted.lo || s.q[6] > s.quoted.hi) {
+    rows.push({ cells: [text('Quotes cover ' + formatPrice(s.quoted.lo * SCALE) + ' – ' + formatPrice(s.quoted.hi * SCALE) + '; the tails beyond are extrapolated.', { fontSize: '10px', opacity: 0.75 })] });
   }
   rows.push({ cells: [text('Risk-neutral: the price of each outcome, not a forecast.', { fontSize: '10px', opacity: 0.6, paddingBottom: '8px' })] });
   return { background: 'var(--background-color)', border: 'solid 1px var(--border-color)', borderRadius: '8px', rows };
@@ -164,6 +176,8 @@ function summaryOverlay(s, all) {
 
 // The expiry's density (already computed by modelExpiry), resampled to 40
 // points between its 1st and 99th percentile for the overlay chart.
+function pct(p) { return p < 0.01 ? '<1%' : Math.round(p * 100) + '%'; }
+
 function densityFor(s) {
   const d = s.d;
   if (!d) return null;
