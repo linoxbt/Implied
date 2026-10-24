@@ -1,0 +1,31 @@
+<!--{"slug":"script","title":"The script","description":"Read, copy or download implied.js, the whole Implied indicator in one file, then paste it into TrendSpider's Custom Indicator editor.","scripts":["pages/script"]}-->
+<section class="wrap page-head">
+  <div class="crumbs mono"><a href="/">Implied</a><span>/</span><span>Script</span></div>
+  <h1 class="display">implied.js</h1>
+  <p>The whole indicator in one file. Copy it, then paste it into TrendSpider's Custom Indicator editor.</p>
+  <div class="script-meta mono"><span>%%SCRIPT_VERSION%%</span><span>%%SCRIPT_LINES%% lines</span><span>%%SCRIPT_KB%% KB</span><span title="SHA-256 of the file">SHA-256 %%SCRIPT_SHA%%</span><span>Apache-2.0</span></div>
+</section>
+
+<section class="wrap script-page">
+  <div class="script-bar" role="toolbar" aria-label="Script actions">
+    <button class="btn primary" type="button" id="copy">Copy script</button>
+    <a class="btn" href="/implied.js" download="implied.js">Download</a>
+    <a class="btn" href="/implied.js" target="_blank" rel="noopener">View raw</a>
+    <button class="btn" type="button" id="select">Select all</button>
+    <button class="btn" type="button" id="wrap" aria-pressed="false">Wrap lines</button>
+    <span class="script-status" id="status" role="status" aria-live="polite"></span>
+  </div>
+  <div class="script-grid">
+    <div class="code-view" id="code-box" tabindex="0" role="region" aria-label="implied.js source"><pre id="code">%%SCRIPT_HTML%%</pre></div>
+    <div class="script-steps">
+      <h2>Then, in TrendSpider</h2>
+      <ol>
+        <li>Open the <b>Custom Indicator editor</b> and create a new indicator.</li>
+        <li>Paste the script, replacing any template code. Click <b>Apply</b>, then <b>Save</b>.</li>
+        <li>Add it to a <b>Daily</b> chart of a ticker with listed US options (SPY is a good first one).</li>
+      </ol>
+      <p class="muted small">Options data needs TrendSpider's OPRA options add-on, bought in your TrendSpider account. Without it the chart shows "No options data", not a cloud.</p>
+      <p><a class="link" href="/install/">Full install guide →</a></p>
+    </div>
+  </div>
+</section>

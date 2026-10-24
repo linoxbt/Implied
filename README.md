@@ -22,13 +22,14 @@ Implied is a free, open-source [TrendSpider](https://trendspider.com) custom ind
 | [Analyze](https://implied.netlify.app/analyze/) | Drop a chain saved from TrendSpider and see what Implied would paint on it |
 | [How it works](https://implied.netlify.app/how-it-works/) | Quotes → implied vol → fitted smile → density → cloud, one live chart per step |
 | [Validation](https://implied.netlify.app/validation/) | Run the accuracy checks in the browser |
-| [Install](https://implied.netlify.app/install/) | Copy or download the script; settings and messages |
+| [Install](https://implied.netlify.app/install/) | Install steps, settings and on-chart messages |
+| [The script](https://implied.netlify.app/script/) | Read the whole of `implied.js`, then copy, download or open it raw |
 
 ## Install in TrendSpider
 
 1. Open TrendSpider's Custom JS indicator editor and create a new indicator.
 2. Paste the whole of [`dist/implied.js`](dist/implied.js) and save.
-3. Add it to a **Daily** chart of any ticker with listed options. Options data needs TrendSpider's OPRA subscription.
+3. Add it to a **Daily** chart of any ticker with listed options. Options data needs TrendSpider's OPRA options add-on, bought in your TrendSpider account (see their [pricing page](https://trendspider.com/pricing/)).
 
 ## How to read it
 
@@ -65,6 +66,17 @@ For each expiry, Implied:
 | u held at its first-expiry value before that expiry | u interpolated from 0 | Starting u at 0 and also scaling by √t makes the cloud grow like t^1.5, far too narrow in the first days (covered by a test in `test/project.test.js`). |
 | Non-overlapping bands at 7% / 16% / 30% | Stacked fills | The same look, without painting over the core three times. |
 | Skew ratio in log space | (97.5−50)/(50−2.5) in price | The price ratio calls every lognormal "upside skew"; the log ratio reads 1.0 for a flat smile. |
+
+## Tested on real chains
+
+On 2026-10-23 closing quotes (Cboe delayed data) for 22 tickers (SPY, QQQ, IWM, AAPL, MSFT, META, AMZN, GOOGL, TSLA, NVDA, AMD, NFLX, COIN, MSTR, GME, PLTR, SOFI, F, INTC, KO, XOM, BKNG), cut to TrendSpider's 40 strikes per side:
+
+- Every chain drew a cloud, with no crashes, in 20 to 160 ms.
+- **Against the market's own prices.** The probability of finishing below a strike, which a put spread prices with no model at all, matched Implied's to within 0.6 points of probability inside the quoted strikes (NVDA 28-day: 0.2; META 28-day: 0.5), apart from two at-the-money gaps (META 7-day: 1.2; SPY 56-day: 1.9). In SPY's extrapolated tails the gap was up to 1 point.
+- **40 strikes per side.** For single stocks it covers every listed strike that matters, so results equal the full chain. For SPY and QQQ ($1 strikes) it covers about ±5%; the median and upside are unchanged, and the extrapolated lower tail runs 1 to 1.5 points of price wider at 28 to 56 days.
+- **Earnings.** MSFT, AMZN and GOOGL reported inside the 7-day expiry (implied volatility 48 to 71%, against 17 to 25% before). Their market densities (butterfly prices) are wide and flat-topped, not split in two, and Implied correctly called no Fork. Large-cap earnings are usually priced as a wide range; the Fork appears when the market prices a true either/or outcome.
+
+Real quotes are licensed data and are not in this repository. To repeat the check on your machine: `npm run chain -- SPY` saves today's chain to the git-ignored `chains/` folder, then `node tools/replay.js chains/<file>` or `npm test` runs it.
 
 ## Known limits
 
@@ -106,7 +118,8 @@ npm run stress    # thousands of synthetic expiries: Fork hit rate and false For
 npm run preview   # render preview/index.html (dark + light) from the script's paint calls
 npm run site      # build the website into public/ (deployed to Netlify)
 npm run smoke     # open every built page in Chromium under the production CSP
-node tools/replay.js chains/<file>.json   # run a saved real chain through the script
+npm run chain -- SPY                      # save a real chain (Cboe delayed quotes) to chains/, git-ignored
+node tools/replay.js chains/<file>.json   # run a saved chain through the script
 ```
 
 | Path | What it is |

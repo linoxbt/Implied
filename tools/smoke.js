@@ -33,6 +33,10 @@ const PAGES = [
     if (failed.length) throw new Error('validation checks failed: ' + failed.join(', '));
   }],
   ['/install/', 0],
+  ['/script/', 0, async p => {
+    const exact = await p.evaluate(async () => document.getElementById('code').textContent === await (await fetch('/implied.js')).text());
+    if (!exact) throw new Error('the script page text differs from /implied.js');
+  }],
   ['/does-not-exist/', 0],
 ];
 

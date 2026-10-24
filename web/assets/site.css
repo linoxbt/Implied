@@ -359,3 +359,27 @@ body:not(.home) main{padding-bottom:72px} /* the footer is on the landing page o
 .pane h2{margin-top:28px}.pane h2:first-child{margin-top:8px}
 .cmdk-list a[hidden]{display:none}
 .cmdk-empty{margin:12px 10px;font-size:13.5px;color:var(--ink-3)}
+
+/* Script page: the whole of implied.js, highlighted at build time */
+.script-meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px;font-size:12.5px;color:var(--ink-3)}
+.script-bar{position:sticky;top:73px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 0;background:var(--bg);border-bottom:1px solid var(--line);margin-bottom:18px}
+.script-bar .btn[aria-pressed="true"]{border-color:var(--blue-d);color:var(--blue-d);background:var(--blue-soft)}
+.script-status{font-size:13.5px;color:var(--ink-2)}
+.script-grid{display:grid;gap:22px;align-items:start}
+@media (min-width:1000px){.script-grid{grid-template-columns:minmax(0,1fr) 280px}.script-steps{position:sticky;top:140px}}
+.code-view{background:#0c0e16;border-radius:var(--r-lg);overflow:auto;max-height:78vh}
+.code-view pre{margin:0;padding:16px 18px 18px 0;font:12.5px/1.65 var(--mono);color:#e5e7eb;counter-reset:ln;tab-size:2;width:max-content;min-width:100%}
+.code-view.wrap pre{width:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding-left:18px}
+.code-view.wrap .l::before{display:none} /* wrapped lines read better without numbers */
+.code-view .l{counter-increment:ln}
+.code-view .l::before{content:counter(ln);display:inline-block;width:5.5ch;padding-right:2ch;margin-right:1ch;text-align:right;color:#6b7280;border-right:1px solid #1f2433;-webkit-user-select:none;user-select:none}
+.code-view .c{color:#9aa3b5;font-style:italic}
+.code-view .s{color:#fcd9a8}
+.code-view .n{color:#ffb4a1}
+.code-view .k{color:#c4b5fd}
+.code-view .a{color:#86efac;font-weight:600}
+.code-view ::selection{background:#3b4a7a}
+.script-steps{border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 18px 6px}
+.script-steps h2{font-size:16px;margin:0 0 10px}
+.script-steps ol{margin:0 0 12px;padding-left:20px;font-size:14.5px}
+.script-steps li{margin-bottom:8px}

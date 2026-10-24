@@ -28,7 +28,8 @@
     "preview": "node tools/build.js && node tools/preview.js",
     "site": "node tools/build.js && node tools/site.js",
     "stress": "node tools/stress.js",
-    "smoke": "node tools/smoke.js"
+    "smoke": "node tools/smoke.js",
+    "chain": "node tools/fetch-chain.js"
   },
   "engines": {
     "node": ">=22"

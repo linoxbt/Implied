@@ -15,6 +15,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const REPO = 'https://github.com/linoxbt/Implied';
 const SITE = 'https://implied.netlify.app';
 const { coreForBrowser } = require('./build.js');
+const { highlight } = require('./highlight.js');
 
 const NAV = [
   { slug: '', name: 'Home', blurb: 'Search a ticker, see the market table' },
@@ -25,6 +26,7 @@ const NAV = [
   { slug: 'how-it-works', name: 'How it works', blurb: 'The pipeline, step by step, live' },
   { slug: 'validation', name: 'Validation', blurb: 'Run the accuracy checks yourself' },
   { slug: 'install', name: 'Install', blurb: 'One file into TrendSpider, about a minute' },
+  { slug: 'script', name: 'The script', blurb: 'Read, copy or download implied.js' },
 ];
 const { TICKERS, GLOBALS } = require('../web/assets/engine.js');
 let VERSION = '';
@@ -76,7 +78,7 @@ ${meta.file === '404.html' ? '<meta name="robots" content="noindex">' : `<link r
 }
 
 const link = (slug, name, cur) => `<a href="/${slug ? slug + '/' : ''}"${slug === cur ? ' aria-current="page"' : ''}>${name}</a>`;
-const RESOURCES = ['how-it-works', 'validation', 'analyze', 'install'];
+const RESOURCES = ['how-it-works', 'validation', 'analyze', 'install', 'script'];
 
 function header(slug) {
   const res = NAV.filter(n => RESOURCES.includes(n.slug));
@@ -90,7 +92,7 @@ function header(slug) {
   </nav>
   <div class="top-actions">
     <a class="nav-link hide-sm" href="/install/">Install</a>
-    <button class="btn primary" type="button" data-copy>Copy script</button>
+    <a class="btn primary" href="/script/"${slug === 'script' ? ' aria-current="page"' : ''}>Copy script</a>
     <button class="icon-btn only-sm" type="button" data-search aria-label="Search"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m14 14 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
     <button class="burger" type="button" aria-controls="menu" aria-expanded="false" aria-label="Open menu"><span></span></button>
   </div>
@@ -117,7 +119,7 @@ function footer() {
   <div class="foot-grid">
     <div><a class="brand" href="/"><img src="/assets/logo-mark.svg?v=${VERSION}" alt=""><b>Implied</b></a><p>The options market's full implied probability distribution, painted into the future on your TrendSpider chart. Free and open source.</p></div>
     <div><h2>Product</h2><a href="/symbol/">Explore</a><a href="/lab/">Lab</a><a href="/fork/">The Fork</a><a href="/analyze/">Analyze a chain</a></div>
-    <div><h2>Resources</h2><a href="/how-it-works/">How it works</a><a href="/validation/">Validation</a><a href="/install/">Install</a><a href="${REPO}">GitHub</a></div>
+    <div><h2>Resources</h2><a href="/how-it-works/">How it works</a><a href="/validation/">Validation</a><a href="/install/">Install</a><a href="/script/">The script</a><a href="${REPO}">GitHub</a></div>
     <div><h2>Market</h2><div class="clock"><i id="mk"></i><span id="clock">US equities</span></div><p class="small">Charts on this site use simulated chains. In TrendSpider, Implied reads the live options market.</p></div>
   </div>
   <div class="bottom"><span>© 2026 Implied · Apache-2.0 · Built for the TrendSpider Hackathon (#TSBuild26)</span><span>Risk-neutral: the price of each outcome, not a forecast. Not investment advice.</span></div>
@@ -147,6 +149,18 @@ ${scriptsOf(meta, version)}
 </body>
 </html>
 `;
+}
+
+// The script page shows dist/implied.js highlighted, with its size and hash.
+function scriptValue(key, script) {
+  switch (key) {
+    case 'HTML': return highlight(script, GLOBALS);
+    case 'LINES': return String(script.split('\n').length - (script.endsWith('\n') ? 1 : 0));
+    case 'KB': return (Buffer.byteLength(script) / 1024).toFixed(1);
+    case 'SHA': return require('crypto').createHash('sha256').update(script).digest('hex').slice(0, 12);
+    case 'VERSION': return (/Implied (v[\d.]+)/.exec(script) || ['', 'v?'])[1];
+    default: throw new Error('unknown token %%SCRIPT_' + key + '%%');
+  }
 }
 
 function copyDir(from, to) {
@@ -183,7 +197,8 @@ function main() {
     const m = src.match(/^<!--(\{[\s\S]*?\})-->\n/);
     if (!m) throw new Error(f + ': missing page metadata comment');
     const meta = JSON.parse(m[1]);
-    const body = src.slice(m[0].length).replace('%%TESTS%%', testList()).replace(/%%STRESS_(\w+)%%/g, (m, k) => stressValue(k));
+    const body = src.slice(m[0].length).replace('%%TESTS%%', testList()).replace(/%%STRESS_(\w+)%%/g, (m, k) => stressValue(k))
+      .replace(/%%SCRIPT_(\w+)%%/g, (m, k) => scriptValue(k, script));
     for (const s of meta.scripts || []) if (!fs.existsSync(path.join(out, 'assets', s + '.js'))) throw new Error(f + ': missing script ' + s);
     const file = meta.file ? path.join(out, meta.file) : path.join(out, meta.slug, 'index.html');
     fs.mkdirSync(path.dirname(file), { recursive: true });

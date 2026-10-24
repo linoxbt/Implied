@@ -1,4 +1,4 @@
-// Implied — shared page behaviour: menu, copy, toasts, reveals, clock, sliders.
+// Implied — shared page behaviour: menu, search, toasts, copy-text buttons, clock, sliders.
 (function (global) {
   'use strict';
   var root = document.documentElement, body = document.body;
@@ -112,29 +112,7 @@
   var toast = document.querySelector('.toast'), timer;
   function say(msg) { if (!toast) return; toast.textContent = msg; toast.classList.add('show'); clearTimeout(timer); timer = setTimeout(function () { toast.classList.remove('show'); }, 2600); }
 
-  // Copy the script. The text is fetched ahead of the click when possible,
-  // because Safari only allows a clipboard write inside the click itself. If
-  // the copy is blocked, the file downloads instead.
-  var scriptUrl = '/implied.js?v=' + (document.documentElement.getAttribute('data-v') || ''), scriptText = null;
-  function fetchScript() { return fetch(scriptUrl).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); }).then(function (t) { scriptText = t; return t; }); }
-  function download() { var a = document.createElement('a'); a.href = scriptUrl; a.download = 'implied.js'; document.body.appendChild(a); a.click(); a.remove(); }
-  function copyScript() {
-    // Not fetched yet: a ClipboardItem holding the pending fetch keeps the
-    // write inside the click, which Safari requires.
-    var write = !navigator.clipboard ? Promise.reject(new Error('no clipboard'))
-      : scriptText != null ? navigator.clipboard.writeText(scriptText)
-      : global.ClipboardItem ? navigator.clipboard.write([new ClipboardItem({ 'text/plain': fetchScript().then(function (t) { return new Blob([t], { type: 'text/plain' }); }) })])
-      : fetchScript().then(function (t) { return navigator.clipboard.writeText(t); });
-    write.then(function () { say('Copied implied.js. Paste it into the TrendSpider Custom JS editor.'); })
-      .catch(function () { download(); say('Copying was blocked, so implied.js is downloading instead.'); });
-  }
-  var copyButtons = document.querySelectorAll('[data-copy]');
-  // Fetched when a copy button is pointed at or focused, not on every page load.
-  function prefetch() { if (scriptText == null) fetchScript().catch(function () { /* fetched again on click */ }); }
-  copyButtons.forEach(function (b) {
-    b.addEventListener('click', copyScript);
-    b.addEventListener('pointerenter', prefetch); b.addEventListener('focus', prefetch); b.addEventListener('touchstart', prefetch, { passive: true });
-  });
+  // Copy buttons: the script itself is copied on its own page (/script/).
   document.querySelectorAll('[data-copy-text]').forEach(function (b) {
     b.addEventListener('click', function () {
       var src = document.querySelector(b.getAttribute('data-copy-text'));

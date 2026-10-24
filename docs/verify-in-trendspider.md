@@ -40,4 +40,4 @@ Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider'
    console.log(JSON.stringify({ ticker: current.ticker, schedule, chain, close: close.slice(-260), time: time.slice(-260) }));
    ```
 
-   Then run `node tools/replay.js chains/SPY-<date>.json` (or drop it on the site's Analyze page). Every file in `chains/` is also replayed by `npm test`. Save one earnings-week stock too, and remove the line before publishing. Real chains are OPRA-licensed data: `chains/` is git-ignored apart from the synthetic examples, so they stay on your machine.
+   Then run `node tools/replay.js chains/SPY-<date>.json` (or drop it on the site's Analyze page). Without TrendSpider, `npm run chain -- SPY` saves the same shape from Cboe's free delayed quotes, which is how the README's real-chain results were made. Every file in `chains/` is also replayed by `npm test`. Save one earnings-week stock too, and remove the line before publishing. Real chains are OPRA-licensed data: `chains/` is git-ignored apart from the synthetic examples, so they stay on your machine.
