@@ -11,7 +11,6 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const web = path.join(root, 'web');
 const out = path.join(root, 'public');
-const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const REPO = 'https://github.com/linoxbt/Implied';
 const SITE = 'https://implied.netlify.app';
 const { coreForBrowser } = require('./build.js');
@@ -68,11 +67,10 @@ function head(meta, version) {
 <meta name="twitter:card" content="summary_large_image">
 ${meta.file === '404.html' ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${SITE}/${slug ? slug + '/' : ''}">`}
 <meta name="theme-color" content="#ffffff">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" href="/assets/favicon.svg?v=${version}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/assets/icon-180.png?v=${version}">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/site.css?v=${version}">
 </head>`;
 }
@@ -111,7 +109,7 @@ function header(slug) {
   </div>
   <p class="cmdk-empty" role="status" hidden>No match. This site has simulated tickers only; in TrendSpider, Implied reads any ticker with listed US options.</p>
 </div>
-</div></div>`;
+</div>`;
 }
 
 function footer() {
@@ -174,6 +172,7 @@ function copyDir(from, to) {
 function main() {
   fs.rmSync(out, { recursive: true, force: true });
   copyDir(path.join(web, 'assets'), path.join(out, 'assets'));
+  fs.copyFileSync(path.join(web, 'favicon.ico'), path.join(out, 'favicon.ico')); // browsers ask for it by name
   const script = fs.readFileSync(path.join(root, 'dist/implied.js'), 'utf8');
   fs.writeFileSync(path.join(out, 'implied.js'), script);
   fs.writeFileSync(path.join(out, 'assets/core.js'), coreForBrowser());
@@ -197,7 +196,7 @@ function main() {
     const m = src.match(/^<!--(\{[\s\S]*?\})-->\n/);
     if (!m) throw new Error(f + ': missing page metadata comment');
     const meta = JSON.parse(m[1]);
-    const body = src.slice(m[0].length).replace('%%TESTS%%', testList()).replace(/%%STRESS_(\w+)%%/g, (m, k) => stressValue(k))
+    const body = src.slice(m[0].length).replace('%%TESTS%%', () => testList()).replace(/%%STRESS_(\w+)%%/g, (m, k) => stressValue(k))
       .replace(/%%SCRIPT_(\w+)%%/g, (m, k) => scriptValue(k, script));
     for (const s of meta.scripts || []) if (!fs.existsSync(path.join(out, 'assets', s + '.js'))) throw new Error(f + ': missing script ' + s);
     const file = meta.file ? path.join(out, meta.file) : path.join(out, meta.slug, 'index.html');

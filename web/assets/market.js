@@ -67,5 +67,5 @@
     return best && { K: best.K, price: best.c + best.p };
   }
 
-  global.ImpliedMarket = { load: load, find: find, atmIv: atmIv, lognormal: lognormal, sigmaPrice: sigmaPrice, straddle: straddle, short: short, ymd: ymd };
+  global.ImpliedMarket = { load: load, atmIv: atmIv, lognormal: lognormal, sigmaPrice: sigmaPrice, straddle: straddle, short: short, ymd: ymd };
 })(window);

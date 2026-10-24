@@ -24,6 +24,8 @@ jobs:
       # The stress numbers quoted in the README and on the site must match a fresh run.
       - run: npm run stress -- --write
       - run: git diff --exit-code docs/stress.json
+      # The README's chart images must match what the script draws now.
+      - run: npm run preview && git diff --exit-code docs/img
       - run: npm run site
   smoke:
     runs-on: ubuntu-latest

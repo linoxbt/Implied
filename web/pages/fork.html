@@ -8,11 +8,11 @@
 <section class="wrap grid-app results-first">
   <form class="panel" aria-label="Two-outcome market">
     <h2>The event</h2>
-    <div class="field"><label for="move">Move the market prices <output data-for="move"></output></label><input type="range" id="move" min="0" max="15" step="0.5" value="8"></div>
-    <div class="field"><label for="vol">Volatility around each outcome <output data-for="vol"></output></label><input type="range" id="vol" min="8" max="60" step="1" value="20"></div>
-    <div class="field"><label for="dte">Days to expiry <output data-for="dte"></output></label><input type="range" id="dte" min="2" max="60" step="1" value="10"></div>
-    <div class="field"><label for="w">Odds of the downside outcome <output data-for="w"></output></label><input type="range" id="w" min="25" max="75" step="1" value="50"></div>
-    <div class="field"><label for="spr">Bid-ask spread <output data-for="spr"></output></label><input type="range" id="spr" min="0.5" max="10" step="0.5" value="3"></div>
+    <div class="field"><div class="field-head"><label for="move">Move the market prices</label><output for="move" data-for="move"></output></div><input type="range" id="move" min="0" max="15" step="0.5" value="8"></div>
+    <div class="field"><div class="field-head"><label for="vol">Volatility around each outcome</label><output for="vol" data-for="vol"></output></div><input type="range" id="vol" min="8" max="60" step="1" value="20"></div>
+    <div class="field"><div class="field-head"><label for="dte">Days to expiry</label><output for="dte" data-for="dte"></output></div><input type="range" id="dte" min="2" max="60" step="1" value="10"></div>
+    <div class="field"><div class="field-head"><label for="w">Odds of the downside outcome</label><output for="w" data-for="w"></output></div><input type="range" id="w" min="25" max="75" step="1" value="50"></div>
+    <div class="field"><div class="field-head"><label for="spr">Bid-ask spread</label><output for="spr" data-for="spr"></output></div><input type="range" id="spr" min="0.5" max="10" step="0.5" value="3"></div>
     <label class="switch">Show the true distribution <input type="checkbox" id="truth" checked></label>
   </form>
 

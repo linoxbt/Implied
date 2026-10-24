@@ -20,7 +20,7 @@
       // Escape closes the topmost layer only: the search palette sits above the menu
       var palette = document.getElementById('cmdk');
       if (e.key === 'Escape' && body.classList.contains('menu-open') && (!palette || palette.hidden)) { setMenu(false); burger.focus(); }
-      if (e.key === 'Tab' && body.classList.contains('menu-open')) {
+      if (e.key === 'Tab' && body.classList.contains('menu-open') && (!palette || palette.hidden)) {
         var f = [burger].concat([].slice.call(menu.querySelectorAll('a')));
         var i = f.indexOf(document.activeElement);
         if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
@@ -132,7 +132,13 @@
   new MutationObserver(labelTables).observe(document.body, { childList: true, subtree: true });
 
   // Range sliders: fill + live value
-  function paintRange(r) { var p = (r.value - r.min) / (r.max - r.min) * 100; r.style.setProperty('--p', p + '%'); }
+  // The formatted value shown beside a slider (<output for=id>) is also what
+  // screen readers announce, via aria-valuetext. It is read a tick later,
+  // after the page's own handler has written it.
+  function paintRange(r) {
+    var p = (r.value - r.min) / (r.max - r.min) * 100; r.style.setProperty('--p', p + '%');
+    setTimeout(function () { var o = r.id && document.querySelector('output[for="' + r.id + '"]'); if (o && o.textContent) r.setAttribute('aria-valuetext', o.textContent); }, 0);
+  }
   document.querySelectorAll('input[type=range]').forEach(function (r) { paintRange(r); r.addEventListener('input', function () { paintRange(r); }); });
 
   // New York clock, regular session (holidays not included)
@@ -151,5 +157,5 @@
   }
   tick(); setInterval(tick, 30000);
 
-  global.ImpliedUI = { say: say, paintRange: paintRange };
+  global.ImpliedUI = { paintRange: paintRange };
 })(window);

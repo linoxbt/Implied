@@ -176,7 +176,7 @@
     host.innerHTML = '<h2><span class="tk">' + esc(D.sym) + '</span> Fork Detection</h2>' +
       '<p class="lead">The Fork is when the options market prices two separate outcomes, as before a binary event, and the middle becomes the least likely place to land. Implied checks every expiration with three shape rules, a data gate and a smoothing check.</p>' +
       '<div class="controls"><span class="ctl-select">Expiration Date</span>' + expButtons('fe', list, false) + '</div>' +
-      '<div class="verdict">' + (f ? '<span class="chip fork big">Fork detected</span><b>' + esc(forkLabel(f)) + '</b>' : '<span class="chip big">One outcome</span><b>' + (single ? 'The market prices a single peak at this expiration.' : 'Two peaks, but no Fork: ' + esc(dg.reason) + '.') + '</b>') + '</div>' +
+      '<div class="verdict">' + (f ? '<span class="chip fork big">Fork detected</span><b>' + esc(forkLabel(f)) + '</b>' : '<span class="chip big">One outcome</span><b>' + (dg.peaks < 2 ? 'The market prices a single peak at this expiration.' : single ? 'One main peak: the second bump is under 25% of it, too small to count.' : 'Two peaks, but no Fork: ' + esc(dg.reason) + '.') + '</b>') + '</div>' +
       '<div class="dark-card"><div class="chart-host" id="fc"></div></div>' +
       '<div class="ptable"><h3>The rules</h3><div class="table-wrap"><table class="data" id="ft"></table></div><p style="margin-top:12px"><a class="link" href="/fork/">Build your own two-outcome market in the Fork lab →</a></p></div>';
     bindExp('fe', false, drawFork);
@@ -210,7 +210,7 @@
     $('ov-title').innerHTML = '<span class="tk">' + esc(D.sym) + '</span> Overview';
     var stat = function (k, v) { return '<div><span>' + k + '</span><b>' + v + '</b></div>'; };
     $('ov-stats').innerHTML = stat('Last close', fmt(last)) + stat('Day change', (last >= prev ? '+' : '') + pct(last / prev - 1, 2)) + stat('52 week high', fmt(Math.max.apply(null, all))) + stat('52 week low', fmt(Math.min.apply(null, all))) +
-      stat('Expirations listed', D.expiries.length) + stat('Expirations modelled', D.expiries.filter(function (e) { return e.ok; }).length) + stat('Strikes per side', 40) + stat('Quoted spot', fmt(D.S));
+      stat('Expirations listed', D.expiries.length) + stat('Expirations modelled', D.expiries.filter(function (e) { return e.ok; }).length) + stat('Strikes per expiration (most)', Math.max.apply(null, D.expiries.map(function (e) { return Object.keys(e.byStrike || {}).length; }))) + stat('Quoted spot', fmt(D.S));
     var ok = okList(), n30 = ok.slice().sort(function (a, b) { return Math.abs(a.dte - 30) - Math.abs(b.dte - 30); })[0], far = ok.filter(function (e) { return e.dte <= 91; }).pop() || ok[ok.length - 1];
     var wk = ok.filter(function (e) { return e.dte >= 5 && M.straddle(e); })[0], fk = ok.filter(function (e) { return e.ex.shape.fork; })[0], sh = far.ex.shape, tag = skewTag(sh.skew);
     $('ov-text').innerHTML = 'As of ' + M.short(D.time[D.time.length - 1] > 1e12 ? D.time[D.time.length - 1] / 1000 : D.time[D.time.length - 1]) + ', <b class="tk">' + esc(D.sym) + '</b> options price a <b>95% range of ' + fmt(sh.q[0]) + ' – ' + fmt(sh.q[6]) + '</b> by ' + far.date + ', around a median of <b>' + fmt(sh.q[3]) + '</b>. ' +
@@ -293,6 +293,7 @@
   }).catch(function (e) {
     var list = Implied.TICKERS.map(function (t) { return '<a class="link" href="/symbol/?t=' + t.sym + '">' + t.sym + '</a>'; }).join(', ');
     document.querySelector('.quote').hidden = true;
+    document.querySelector('.tabs').hidden = true; // nothing to switch between
     if (e && e.unknown != null) {
       $('s-name').textContent = (e.unknown || 'This ticker') + ' is not on this site';
       $('chart-pane').innerHTML = '<div class="notice warn"><i></i><span>This site only has simulated chains: ' + list + '. In TrendSpider, Implied reads the live chain of any ticker with listed US options. To check a real chain here, <a class="link" href="/analyze/">analyze one saved from TrendSpider</a>.</span></div>';
