@@ -65,12 +65,12 @@ function head(meta, version) {
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="${SITE}/${slug ? slug + '/' : ''}">
-<meta name="theme-color" content="#f6f5f0">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/assets/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=${version}">
 </head>`;
 }
@@ -98,14 +98,14 @@ function siteLayout(meta, body, version) {
   const slug = meta.slug;
   const links = NAV.filter(n => n.slug && n.slug !== 'install').map(n => `<a href="/${n.slug}/"${n.slug === slug ? ' aria-current="page"' : ''}>${n.name}</a>`).join('');
   return `${head(meta, version)}
-<body class="site">
+<body class="site${slug === '' ? ' home' : ''}">
 <a class="sr" href="#main">Skip to content</a>
 <header class="top"><div class="wrap">
   ${brand}
   <nav class="top-nav" aria-label="Main">${links}</nav>
   <div class="top-actions">
     <a class="pill ghost sm hide-sm" href="/install/">Install</a>
-    <a class="pill solid sm" href="/lab/">Open the app <span class="arr">→</span></a>
+    <a class="pill navy sm" href="/lab/">Open the app <span class="arr">›</span></a>
     <button class="burger" type="button" aria-controls="menu" aria-expanded="false" aria-label="Open menu"><span></span></button>
   </div>
 </div></header>

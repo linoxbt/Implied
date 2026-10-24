@@ -1,103 +1,105 @@
-<!--{"slug":"","title":"The options market's real odds, on your chart","description":"Implied is a free, open-source TrendSpider indicator that paints the options market's full implied price distribution into the future: skewed, fat-tailed, and sometimes split in two.","scripts":["core","engine","charts","results","pages/home"]}-->
+<!--{"slug":"","title":"The real odds behind every options chain","description":"Implied is a free, open-source TrendSpider indicator that paints the options market's full implied price distribution into the future: skewed, fat-tailed, and sometimes split in two.","scripts":["core","engine","charts","results","pages/home"]}-->
 <section class="hero">
-  <div class="wrap">
+  <div class="hero-grad" aria-hidden="true"><canvas id="grad" width="96" height="48"></canvas></div>
+  <div class="wrap hero-grid">
     <div>
-      <span class="kicker">Options intelligence for TrendSpider</span>
-      <h1>See the odds the options market is <em>really</em> pricing.</h1>
-      <p class="lede">Expected-move tools assume a bell curve. Implied reads every liquid strike, recovers the full probability distribution for each expiry, and paints it into the future on your chart: lopsided, fat-tailed, and sometimes split in two.</p>
+      <a class="pre" href="/fork/">The Fork: two-outcome detection <span>Explore ›</span></a>
+      <h1>The real odds behind every options chain.</h1>
+      <p class="lede">Implied turns every liquid strike into the full probability distribution for each expiry, and paints it into the future on your TrendSpider chart: skewed, fat-tailed, and sometimes split in two.</p>
       <div class="ctas">
-        <button class="pill solid lg" data-copy>Get the indicator, free</button>
-        <a class="pill lg" href="/lab/">Try it live <span class="arr">→</span></a>
+        <button class="pill solid lg" data-copy>Get Implied free <span class="arr">›</span></button>
+        <a class="pill ghost lg" href="/lab/">Explore the app <span class="arr">›</span></a>
       </div>
     </div>
-    <figure class="morph" aria-labelledby="morph-title" style="margin:0">
-      <div class="morph-head"><b id="morph-title">A bell curve</b><span id="morph-sub">what an expected-move tool assumes</span></div>
-      <svg id="morph" viewBox="0 0 520 260" role="img" aria-label="A probability distribution changing from a bell curve to the shapes the options market prices"></svg>
-      <div class="morph-legend"><span><i></i>What the market prices</span><span><i class="b"></i>Bell curve, same spread</span></div>
-      <div class="morph-dots" role="group" aria-label="Shape"><button type="button" aria-pressed="true" aria-label="Bell curve"></button><button type="button" aria-pressed="false" aria-label="Crash skew"></button><button type="button" aria-pressed="false" aria-label="Fat right tail"></button><button type="button" aria-pressed="false" aria-label="The Fork"></button></div>
-    </figure>
+    <div class="hero-visual">
+      <div class="mock">
+        <div class="mock-bar"><span class="dots"><i></i><i></i><i></i></span><span class="tick">DEMO</span><span class="tag">1D</span><span class="tag on">Implied</span><span class="sp"></span><span><span class="live-dot"></span>Live</span></div>
+        <div class="chart-host" id="hero-chart"></div>
+      </div>
+      <div class="fc fc-1" id="fc-dist"><h4 id="fc-title">Distribution</h4><svg id="fc-svg" viewBox="0 0 220 54" preserveAspectRatio="none" aria-hidden="true"></svg><b id="fc-median">—</b><div class="s" id="fc-range">95% range</div></div>
+      <div class="fc fc-2" id="fc-fork" hidden><span class="ico" aria-hidden="true">⑂</span><div><h4>Fork detected</h4><b id="fc-fork-px">—</b><div class="s" id="fc-fork-v"></div></div></div>
+    </div>
   </div>
+</section>
+
+<section class="built" aria-label="Built on">
   <div class="wrap">
-    <div class="facts-row">
-      <div><b>601</b><span>points of probability per expiry, versus one straddle number</span></div>
-      <div><b>357 / 360</b><span>two-outcome markets where the Fork was found</span></div>
-      <div><b>0</b><span>false Forks in 1,861 one-outcome markets</span></div>
-      <div><b>$0</b><span>free and open source, Apache-2.0</span></div>
+    <p>Built on</p>
+    <ul><li>TrendSpider<small>custom JS</small></li><li>OPRA<small>options data</small></li><li>Breeden–Litzenberger<small>1978</small></li><li>Black-76</li><li>Apache-2.0<small>open source</small></li></ul>
+  </div>
+</section>
+
+<section class="wrap block" aria-labelledby="b1">
+  <div class="block-head"><span class="kicker">A complete picture</span><h2 id="b1">Everything the options market knows, not just one number.</h2><p>An expected move turns a single straddle price into a symmetric range. Implied uses every liquid strike, so you see the shape of the bet itself.</p></div>
+  <div class="cols3">
+    <div class="col"><div class="ic g1" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 15c3 0 3.5-11 7.5-11s4.5 11 7.5 11"/></svg></div><h3>The full distribution</h3><p>Seven percentile bands for every expiry out to the edge of the chart, from a 601-point density, widening with the square root of time.</p><a class="link" href="/how-it-works/">See how <span class="arr">›</span></a></div>
+    <div class="col"><div class="ic g2" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 15c5 0 5-11 9-11 2.5 0 3.5 6 6 11"/></svg></div><h3>Skew and tails, in words</h3><p>Which side the market pays more for, and by how much: "Downside tail 1.5× upside". Fat tails show up exactly where they are priced.</p><a class="link" href="/lab/">Try it in the Lab <span class="arr">›</span></a></div>
+    <div class="col"><div class="ic g3" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 15c2 0 2.5-10 4.5-10S8 12 9 12s1-7 3-7 2.5 10 4.5 10"/></svg></div><h3>The Fork</h3><p>When the market prices two outcomes, usually around earnings, Implied flags it, marks both prices on the chart and the least likely zone between them.</p><a class="link" href="/fork/">Build a Fork <span class="arr">›</span></a></div>
+  </div>
+</section>
+
+<section class="wrap block" aria-labelledby="b2">
+  <div class="block-head"><span class="kicker">See it against a bell curve</span><h2 id="b2">Where expected-move tools go wrong.</h2><p>The dashed lines are a bell curve with the same median and spread. The blue cloud is what the options market actually prices.</p></div>
+  <div class="ptabs" role="group" aria-label="Market">
+    <button type="button" data-demo="index" aria-pressed="true">Index crash skew</button><button type="button" data-demo="meme" aria-pressed="false">High-IV fat tail</button><button type="button" data-demo="earnings" aria-pressed="false">Earnings Fork</button>
+  </div>
+  <div class="pshow">
+    <div class="copy" id="pcopy"></div>
+    <div class="dark-card" data-title="Implied · simulated chain">
+      <div class="chart-host" id="chart"></div>
+      <div class="chart-bar"><div class="chips" id="chips"></div><label class="compare"><input type="checkbox" id="bell" checked> Bell curve</label></div>
+      <p class="caption" id="caption"></p>
     </div>
   </div>
 </section>
 
-<section class="wrap showcase" aria-labelledby="show-title">
-  <div class="showcase-head">
-    <div><span class="kicker">The product</span><h2 id="show-title" class="block-title" style="margin-top:14px">The whole distribution, out to every expiry.</h2></div>
-    <p>This is the real implied.js running in your browser on a simulated chain, painting exactly what it paints in TrendSpider.</p>
-  </div>
-  <div class="dark-card hero-chart" data-title="DEMO · Daily · Implied">
-    <div class="chart-bar">
-      <span class="mono"><span class="live-dot"></span>Live in your browser</span>
-      <div class="seg" role="group" aria-label="Demo market">
-        <button type="button" data-demo="earnings" aria-pressed="true">Earnings</button><button type="button" data-demo="index" aria-pressed="false">Index</button><button type="button" data-demo="meme" aria-pressed="false">High IV</button>
+<section class="navy-band" aria-labelledby="b3">
+  <div class="wrap navy-grid">
+    <div>
+      <div class="block-head" style="margin-bottom:36px"><span class="kicker">The engine</span><h2 id="b3">Rigorous math, in one file you can read.</h2><p>Quotes are cleaned, implied volatility is solved and smoothed, and the density comes from Breeden–Litzenberger, kept free of negative probability. Tested against the true distribution on thousands of chains.</p></div>
+      <div class="big-stats">
+        <div><b>357/360</b><span>two-outcome markets where the Fork was found</span></div>
+        <div><b>0/1,861</b><span>false Forks on one-outcome markets</span></div>
+        <div><b>601</b><span>points of probability per expiry</span></div>
+        <div><b>&lt;1.5 pts</b><span>probability error on any band</span></div>
       </div>
+      <div class="ctas" style="margin-top:38px"><a class="pill light" href="/validation/">Run the checks <span class="arr">›</span></a><a class="pill dark" href="/how-it-works/">How it works <span class="arr">›</span></a></div>
     </div>
-    <div class="chart-host" id="chart"></div>
-    <div class="chart-bar"><div class="chips" id="chips"></div>
-      <label class="compare"><input type="checkbox" id="bell" checked> Compare with a bell curve</label></div>
-    <p class="caption" id="caption"></p>
-  </div>
-</section>
+    <div class="codecard" role="img" aria-label="An excerpt of implied.js">
+      <div class="cc-bar"><span class="on">implied.js</span><span>core.js</span></div>
+<pre><span class="f">describe_indicator</span>(<span class="s">'Implied'</span>, <span class="s">'price'</span>, { shortName: <span class="s">'Implied'</span> });
 
-<section class="wrap section" aria-labelledby="miss-title" style="padding-top:96px">
-  <span class="kicker">Why it matters</span>
-  <h2 id="miss-title" class="block-title" style="margin:14px 0 26px">Three things a bell curve can't show you.</h2>
-  <div class="bento">
-    <a class="tile c3" href="/lab/?preset=index"><span class="n">Skew</span><svg class="viz" data-viz="skew" viewBox="0 0 400 130" aria-hidden="true"></svg><h3>One tail is fatter</h3><p>Index options pay more for crashes than rallies, so the downside band stretches further than the upside. Implied says by how much.</p><span class="go">Explore in the Lab →</span></a>
-    <a class="tile c3" href="/lab/?preset=meme"><span class="n">Fat tails</span><svg class="viz" data-viz="tail" viewBox="0 0 400 130" aria-hidden="true"></svg><h3>Big moves cost more</h3><p>High-volatility names price extreme outcomes far beyond a bell curve's edges. The outer band shows exactly where.</p><span class="go">Explore in the Lab →</span></a>
-    <a class="tile ink c4" href="/fork/"><span class="n">The Fork</span><svg class="viz" data-viz="fork" viewBox="0 0 600 130" aria-hidden="true"></svg><h3>Two outcomes, not one</h3><p>Before earnings the market often prices a jump up or a jump down, and the middle becomes the least likely place to land. Implied finds it, marks both outcomes on the chart, and names the prices.</p><span class="go">Build a Fork →</span></a>
-    <a class="tile c2" href="/analyze/"><span class="n">Your data</span><h3>Run a real chain</h3><p>Save a chain from TrendSpider with one line and see what Implied paints, without leaving your browser.</p><span class="go">Analyze a chain →</span></a>
-  </div>
-</section>
+<span class="c">// Every expiry, 40 strikes each side, bid and ask</span>
+<span class="k">const</span> [schedule, chain] = <span class="k">await</span> Promise.<span class="f">all</span>([
+  request.<span class="f">options_schedule</span>(current.ticker),
+  request.<span class="f">options_data_for_all_expirations</span>(
+    current.ticker, <span class="n">40</span>, [<span class="s">'b'</span>, <span class="s">'a'</span>], <span class="s">'all'</span>),
+]);
 
-<section class="wrap section" aria-labelledby="how-title" style="padding-top:96px">
-  <div class="two-col">
-    <div><span class="kicker">The method</span><h2 id="how-title" class="block-title" style="margin-top:14px">Published finance, done carefully.</h2><p class="block-sub">Breeden–Litzenberger (1978): the second derivative of option prices across strikes is the market's probability density. The hard part is the cleaning and smoothing that make it stable on real quotes.</p><div class="ctas" style="margin-top:22px"><a class="pill" href="/how-it-works/">Watch each step live <span class="arr">→</span></a></div></div>
-    <ol class="steps" style="align-self:start">
-      <li><b>Clean</b>Out-of-the-money quotes only; stale and too-wide quotes dropped; the forward from put-call parity.</li>
-      <li><b>Smooth</b>Implied volatility per strike, fitted with a spline weighted by each quote's spread.</li>
-      <li><b>Differentiate</b>A 601-point density per expiry, kept free of negative probability.</li>
-      <li><b>Paint</b>Percentile bands into the future, widening with the square root of time.</li>
-    </ol>
-  </div>
-</section>
+<span class="c">// Clean → smile → density → shape, per expiry</span>
+<span class="k">const</span> { shapes } = <span class="f">selectExpiries</span>({ schedule, ... });
 
-<section class="wrap section" aria-labelledby="proof-title" style="padding-top:96px">
-  <div class="proof">
-    <div><span class="kicker">Validation</span><h2 id="proof-title" class="block-title" style="margin-top:14px">Checked, not claimed.</h2><p class="block-sub">Tested on thousands of simulated chains with realistic spreads and noisy quotes, against the true distribution they were priced from. Every check runs on each push, and you can run them yourself.</p><div class="ctas" style="margin-top:22px"><a class="pill" href="/validation/">Run the checks <span class="arr">→</span></a></div></div>
-    <div class="stats">
-      <div class="stat"><b>357 / 360</b><span>two-outcome markets where the Fork was found</span></div>
-      <div class="stat"><b>0 / 1,861</b><span>false Forks on one-outcome markets</span></div>
-      <div class="stat"><b>&lt; 1.5 pts</b><span>probability error on any band</span></div>
-      <div class="stat"><b>2</b><span>data requests per load, well under TrendSpider's limit of 6</span></div>
+<span class="c">// Seven percentile bands, painted into the future</span>
+<span class="f">projectQuantiles</span>(shapes, spot, lastClose, times)
+  .<span class="f">forEach</span>((band, j) =&gt; <span class="f">paint_projection</span>(band, { ... }));</pre>
     </div>
   </div>
 </section>
 
-<section class="wrap section" aria-labelledby="faq-title" style="padding-top:96px">
-  <div class="two-col">
-    <div><span class="kicker">Questions</span><h2 id="faq-title" class="block-title" style="margin-top:14px">Good to know.</h2></div>
-    <div class="faq">
-      <details><summary>Is this a forecast?</summary><p>No. It is the risk-neutral distribution: what the options market charges for each outcome. It includes risk premia, so it is the market's price of the odds, not a guarantee of real-world odds.</p></details>
-      <details><summary>What do I need?</summary><p>A TrendSpider account with access to options data (OPRA), a Daily chart, and a ticker with listed US options. Other timeframes and tickers without options show a clear message instead of a chart.</p></details>
-      <details><summary>How is it different from an expected move?</summary><p>An expected move is one number turned into a symmetric range. Implied uses every liquid strike to recover the whole shape: which tail is fatter, how fat it is, and whether the market is pricing two separate outcomes.</p></details>
-      <details><summary>Does it cost anything or send my data anywhere?</summary><p>No. It is one open-source file that runs inside TrendSpider. There is no server and no API key. The pages on this site also run entirely in your browser.</p></details>
-      <details><summary>Has it been tested inside TrendSpider?</summary><p>The script follows TrendSpider's published scripting rules, and every page here runs it against a stand-in for that runtime. A short checklist for confirming it on a live chart is in the verification guide on GitHub.</p></details>
-    </div>
-  </div>
+<section class="wrap block" aria-labelledby="b4">
+  <div class="block-head"><span class="kicker">Get started</span><h2 id="b4">Live on your chart in about a minute.</h2><p>No server, no API key, nothing to sign up for. One file runs inside TrendSpider.</p></div>
+  <ol class="howline">
+    <li><h3>Copy the script</h3><p>One click, or download implied.js.</p></li>
+    <li><h3>Paste into TrendSpider</h3><p>Open the Custom JS indicator editor, create an indicator, paste and save.</p></li>
+    <li><h3>Add it to a Daily chart</h3><p>Any ticker with listed US options and TrendSpider's OPRA data.</p></li>
+    <li><h3>Read the cloud</h3><p>Bands, skew, and the Fork, out to every expiry it models.</p></li>
+  </ol>
 </section>
 
-<section class="wrap">
-  <div class="cta-band">
-    <h2>See the real shape of the bet.</h2>
-    <p>One file, pasted into TrendSpider. About a minute from now you'll see what the options market is really pricing.</p>
-    <div class="ctas"><button class="pill solid lg" data-copy>Copy the script</button><a class="pill dark lg" href="/install/">Install guide <span class="arr">→</span></a></div>
+<section class="final" aria-labelledby="b5">
+  <div class="wrap final-grid">
+    <div><h2 id="b5">Ready to see the real odds?</h2><p>Free and open source. Risk-neutral: the price of each outcome, not a forecast.</p><div class="ctas"><button class="pill solid lg" data-copy>Get Implied free <span class="arr">›</span></button><a class="pill ghost lg" href="/install/">Install guide <span class="arr">›</span></a></div></div>
+    <div class="opt"><h3>Try it with your data</h3><p>Save a chain from TrendSpider with one line and run it through the real script in your browser.</p><a class="link" href="/analyze/">Analyze a chain <span class="arr">›</span></a></div>
+    <div class="opt"><h3>Read the method</h3><p>Every step from quotes to cloud, live, with the code on GitHub.</p><a class="link" href="/how-it-works/">How it works <span class="arr">›</span></a></div>
   </div>
 </section>
