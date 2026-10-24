@@ -129,12 +129,18 @@ function naturalSpline(xs, ys) {
 
 // ---------- Clean: quotes -> forward + OTM implied vols ----------
 
+// A spread this wide in dollars is always accepted: cheap wing options trade
+// a few cents apart (bid 0.02 / ask 0.04 is 67% of mid), and rejecting them
+// would cut the wings short on low-priced stocks. Their wide spread already
+// gives them little weight in the smile fit.
+const MIN_TICK_SPREAD = 0.05;
+
 function quoteMid(q, maxSpread) {
   if (!q) return null;
   const b = Number(q.b), a = Number(q.a);
   if (!(b > 0) || !(a > b)) return null;
   const m = (a + b) / 2;
-  if ((a - b) / m > maxSpread) return null;
+  if (a - b > Math.max(maxSpread * m, MIN_TICK_SPREAD)) return null;
   return { mid: m, half: (a - b) / 2 };
 }
 
@@ -473,6 +479,7 @@ function fitExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
   // not. Tiny ripples in a high-volatility smile are amplified by the second
   // derivative; clipping them would leave spikes that look like peaks.
   for (const boost of SMOOTHING_BOOSTS) {
+    out.boost = boost;
     out.smile = fitSmile(pts, T, boost);
     if (!out.smile) { out.reason = 'smile fit failed'; return out; }
     out.d = density(F, T, D, out.smile);
@@ -480,7 +487,28 @@ function fitExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
   }
   out.reason = densityProblem(out.d) || '';
   out.ok = !out.reason;
+  out.T = T;
   return out;
+}
+
+// The Fork verdict for a fitted expiry. A real two-outcome market is a broad
+// "frown" in the smile that survives harder smoothing; a false second peak
+// from noisy mids (wide spreads, even on a liquid chain) is a ripple that
+// does not. So a Fork found on the fitted density only counts if the smile
+// refitted FORK_STABILITY times smoother still shows it.
+const FORK_STABILITY = 4;
+
+function fitForkDiagnostics(f) {
+  const strikes = f.pts.map(p => p.K);
+  const diag = forkDiagnostics(f.d, f.F, strikes);
+  if (!diag.fork) return diag;
+  const smoother = fitSmile(f.pts, f.T, (f.boost || 1) * FORK_STABILITY);
+  const d = smoother && density(f.F, f.T, f.D, smoother);
+  if (!d || !forkDiagnostics(d, f.F, strikes).fork) {
+    diag.fork = null;
+    diag.reason = 'does not survive harder smoothing';
+  }
+  return diag;
 }
 
 // Why a density cannot be used, or null: missing, negative probability left
@@ -497,7 +525,7 @@ function modelExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
   const f = fitExpiry(byStrike, S, T, r, maxSpread, minStrikes);
   if (!f.ok) return null;
   const strikes = f.pts.map(p => p.K);
-  return Object.assign({ T, F: f.F, d: f.d, strikes }, describeShape(f.d, f.F, strikes));
+  return Object.assign({ T, F: f.F, d: f.d, strikes }, describeShape(f.d, f.F, strikes), { fork: fitForkDiagnostics(f).fork });
 }
 
 // ---------- Project: expiry shapes -> one value per future bar ----------
@@ -714,6 +742,7 @@ const SHOW_FORK = input.boolean('Show Fork', true);
 const STRIKES_EACH_SIDE = 40;
 // paint_projection paints at most 100 values, starting at the last candle.
 const MAX_PROJECTION = 100;
+const CARRY_BAND = 0.1; // see buildCloud
 // Projection bars are indexed by calendar days to expiry, as in TrendSpider's
 // own Expected Move from Options script. 'trading' indexes weekdays only.
 const PROJECTION_DAYS = 'calendar';
@@ -766,13 +795,18 @@ async function buildCloud() {
   // The model's clock (T) runs from now; the chart's runs from the last
   // candle, so each expiry is placed at its own day offset. The cloud starts
   // at the last close; every price shown (bands, Fork ticks, summary panel)
-  // is on that same footing, scaled by lastClose / the chain's own spot (its
-  // nearest parity forward, discounted), never by a stale quoted price.
+  // is on that same footing (see refSpot below), never on a stale quoted price.
   const timeline = projectionTimeline(PROJECTION_DAYS, lastTime, shapes[shapes.length - 1].day);
   const placed = shapes.map(s => ({ F: s.F, q: s.q, T: s.day / 365 }));
   // Candidates were limited to bars below MAX_PROJECTION, so every series fits.
-  const bands = projectQuantiles(placed, chainSpot, lastClose, timeline.times);
-  return { problem: null, shapes, timeline, bands, scale: lastClose / chainSpot };
+  // When the chart's last close and the chain's spot agree within CARRY_BAND,
+  // they describe the same market and the chain's own forwards are drawn as
+  // they are, so a dividend or borrow cost before the first expiry stays in
+  // the cloud. Further apart (a split, a chart left on an old session), the
+  // chain is rescaled onto the chart.
+  const refSpot = Math.abs(lastClose / chainSpot - 1) <= CARRY_BAND ? lastClose : chainSpot;
+  const bands = projectQuantiles(placed, refSpot, lastClose, timeline.times);
+  return { problem: null, shapes, timeline, bands, scale: lastClose / refSpot };
 }
 
 let cloud;

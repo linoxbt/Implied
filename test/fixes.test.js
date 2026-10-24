@@ -87,7 +87,8 @@ test('summary panel: exact median and 95% range, tail weights, day count from th
   const { schedule, chain } = fx.SCENARIOS.SPY();
   const c = fx.candles(580);
   const sel = core.selectExpiries({ schedule, resultByExpiration: chain.resultByExpiration, spot: 580, lastTime: c.time[c.time.length - 1], rate: r, maxSpread: 0.5, minStrikes: 8, count: 4, maxBars: 100, mode: 'calendar' });
-  const s = sel.shapes[sel.shapes.length - 1], k = 580 / sel.spot;
+  const s = sel.shapes[sel.shapes.length - 1], k = 1; // chart and chain agree: the chain's own prices
+  assert.ok(Math.abs(580 / sel.spot - 1) < 0.1, 'test case: chart and chain agree');
   const out = await runIndicator({ ticker: 'SPY', schedule, chain, ...c });
   const text = overlayText(out);
   assert.ok(text.includes('IMPLIED · ' + s.day + '-DAY DISTRIBUTION'), text[0]);
@@ -111,12 +112,12 @@ test('every setting reaches the model: spread limit, minimum strikes, rate magni
   const base = await run({});
   assert.match((await run({ 'Min usable strikes per expiry': 60 })).error, /^Not enough liquid strikes/);
   assert.match((await run({ 'Max bid-ask spread (fraction of mid)': 0.03 })).error, /^Not enough liquid strikes/); // SPY's quotes are ~4% wide
-  // The forward comes from put-call parity, so the rate mostly enters through
-  // discounting: 4% -> 14% moves the 49-day median by about 0.25%. A rate read
-  // ten times too small would move it about 0.025%; ten times too big, 2.5%.
+  // The forwards come from put-call parity, so the rate only enters through
+  // discounting: 4% -> 14% moves the 49-day median up by about 0.06%. A rate
+  // read ten times too small (1.4%) moves it down; ten times too big, by 0.5%+.
   const hi = await run({ 'Risk-free rate (%)': 14 });
   const shift = lastVal(hi.projections[3].series) / lastVal(base.projections[3].series) - 1;
-  assert.ok(Math.abs(shift) > 0.001 && Math.abs(shift) < 0.01, `median shift ${shift}`);
+  assert.ok(shift > 0.0003 && shift < 0.002, `median shift ${shift}`);
 });
 
 test('a 0-DTE expiry with full quotes is still dropped; a junk expiry is replaced by its neighbour (G9)', async () => {
@@ -291,4 +292,41 @@ test('0-DTE expiries are never candidates, even when the last candle is the day 
   const t = fx.ticker({ S: 100, spreadPct: 0.02, expiries: [1, 7, 14].map(dte => ({ dte, model: fx.smile(0.3) })) });
   const sched = JSON.parse(JSON.stringify(t.schedule)); sched[0].expiration.dte = 0; // expires today; the chart's last bar was yesterday
   assert.ok(!pick(t, { schedule: sched }).candidates.some(c => Number(c.x.dte) === 0));
+});
+
+test('a dividend before the first expiry stays in the cloud; a chart far from the chain is rescaled', async () => {
+  // A $5 dividend goes ex before the first expiry: the chain is priced off 95, the chart closed at 100.
+  const div = fx.ticker({ S: 95, spot: 100, spreadPct: 0.02, step: 1, expiries: [7, 14, 30, 60].map(dte => ({ dte, model: fx.smile(0.25) })) });
+  const out = await runIndicator({ ticker: 'DIV', schedule: div.schedule, chain: div.chain, ...fx.candles(100) });
+  const far = core.modelExpiry(div.chain.resultByExpiration[core.expiryKey(div.schedule[3].expiration.code)], 100, 60 / 365, r, 0.5, 8);
+  near(lastVal(out.projections[3].series) / far.q[3], 1, 0.002, 'cloud median = the chain\'s own 60-day median');
+  // The same chain on a chart 40% away (a split, an old session) is rescaled onto the chart.
+  const moved = await runIndicator({ ticker: 'DIV', schedule: div.schedule, chain: div.chain, ...fx.candles(140) });
+  near(lastVal(moved.projections[3].series) / lastVal(out.projections[3].series), 140 / 95, 0.01, 'rescaled from the chain\'s parity spot (95) to the chart');
+});
+
+test('a liquid but noisy one-outcome chain does not draw a Fork: it must survive harder smoothing', async () => {
+  for (const seed of [19, 51, 53]) { // each drew a false Fork before the stability check
+    const tk = fx.ticker({ S: 190, spreadPct: 0.1, noise: 1, step: 1, range: 0.6, seed,
+      expiries: [7, 14, 30, 60].map(dte => ({ dte, model: { kind: 'smile', atm: 0.45, skew: -0.1, curv: 2.5 } })) });
+    const out = await runIndicator({ ticker: 'XYZ', schedule: tk.schedule, chain: tk.chain, ...fx.candles(190) });
+    assert.equal(out.error, null);
+    assert.ok(!overlayText(out).some(t => /^Fork:/.test(t)), 'seed ' + seed + ': ' + overlayText(out).join(' | '));
+  }
+  // The check's verdict is visible to the site's Fork views
+  const T = 60 / 365, f = core.fitExpiry(fx.expiryQuotes({ S: 190, r, T, model: { kind: 'smile', atm: 0.45, skew: -0.1, curv: 2.5 }, spreadPct: 0.1, noise: 1, seed: 19, step: 1, range: 0.6 }).byStrike, 190, T, r, 0.5, 8);
+  assert.equal(core.fitForkDiagnostics(f).fork, null);
+});
+
+test('a Fork on a low-priced stock is found: cent-wide wing quotes are kept', async () => {
+  const S = 24, mix = dte => { const F = S * Math.exp(r * dte / 365); return { kind: 'mix', parts: [{ w: 0.5, F: F * Math.exp(-0.08), sig: 0.22 }, { w: 0.5, F: F * Math.exp(0.08), sig: 0.22 }] }; };
+  let shown = 0;
+  for (let seed = 1; seed <= 6; seed++) {
+    const tk = fx.ticker({ S, spreadPct: 0.03, step: 0.5, seed, expiries: [{ dte: 3, model: fx.smile(0.3, -0.2, 0.8) }, ...[10, 17, 38].map(dte => ({ dte, model: mix(dte) }))] });
+    const out = await runIndicator({ ticker: 'E', schedule: tk.schedule, chain: tk.chain, ...fx.candles(S) });
+    if (overlayText(out).some(t => /^Fork:/.test(t))) shown++;
+  }
+  assert.equal(shown, 6, 'the Fork shows on every seed (was about 1 in 3 when 0.02 / 0.04 quotes were rejected as too wide)');
+  assert.ok(core.quoteMid({ b: 0.02, a: 0.04 }, 0.5), 'a 2-cent spread is accepted');
+  assert.equal(core.quoteMid({ b: 1.0, a: 2.0 }, 0.5), null, 'a dollar-wide spread on a $1.50 option is not');
 });

@@ -22,6 +22,7 @@ const SHOW_FORK = input.boolean('Show Fork', true);
 const STRIKES_EACH_SIDE = 40;
 // paint_projection paints at most 100 values, starting at the last candle.
 const MAX_PROJECTION = 100;
+const CARRY_BAND = 0.1; // see buildCloud
 // Projection bars are indexed by calendar days to expiry, as in TrendSpider's
 // own Expected Move from Options script. 'trading' indexes weekdays only.
 const PROJECTION_DAYS = 'calendar';
@@ -74,13 +75,18 @@ async function buildCloud() {
   // The model's clock (T) runs from now; the chart's runs from the last
   // candle, so each expiry is placed at its own day offset. The cloud starts
   // at the last close; every price shown (bands, Fork ticks, summary panel)
-  // is on that same footing, scaled by lastClose / the chain's own spot (its
-  // nearest parity forward, discounted), never by a stale quoted price.
+  // is on that same footing (see refSpot below), never on a stale quoted price.
   const timeline = projectionTimeline(PROJECTION_DAYS, lastTime, shapes[shapes.length - 1].day);
   const placed = shapes.map(s => ({ F: s.F, q: s.q, T: s.day / 365 }));
   // Candidates were limited to bars below MAX_PROJECTION, so every series fits.
-  const bands = projectQuantiles(placed, chainSpot, lastClose, timeline.times);
-  return { problem: null, shapes, timeline, bands, scale: lastClose / chainSpot };
+  // When the chart's last close and the chain's spot agree within CARRY_BAND,
+  // they describe the same market and the chain's own forwards are drawn as
+  // they are, so a dividend or borrow cost before the first expiry stays in
+  // the cloud. Further apart (a split, a chart left on an old session), the
+  // chain is rescaled onto the chart.
+  const refSpot = Math.abs(lastClose / chainSpot - 1) <= CARRY_BAND ? lastClose : chainSpot;
+  const bands = projectQuantiles(placed, refSpot, lastClose, timeline.times);
+  return { problem: null, shapes, timeline, bands, scale: lastClose / refSpot };
 }
 
 let cloud;

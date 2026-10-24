@@ -124,12 +124,18 @@ function naturalSpline(xs, ys) {
 
 // ---------- Clean: quotes -> forward + OTM implied vols ----------
 
+// A spread this wide in dollars is always accepted: cheap wing options trade
+// a few cents apart (bid 0.02 / ask 0.04 is 67% of mid), and rejecting them
+// would cut the wings short on low-priced stocks. Their wide spread already
+// gives them little weight in the smile fit.
+const MIN_TICK_SPREAD = 0.05;
+
 function quoteMid(q, maxSpread) {
   if (!q) return null;
   const b = Number(q.b), a = Number(q.a);
   if (!(b > 0) || !(a > b)) return null;
   const m = (a + b) / 2;
-  if ((a - b) / m > maxSpread) return null;
+  if (a - b > Math.max(maxSpread * m, MIN_TICK_SPREAD)) return null;
   return { mid: m, half: (a - b) / 2 };
 }
 
@@ -468,6 +474,7 @@ function fitExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
   // not. Tiny ripples in a high-volatility smile are amplified by the second
   // derivative; clipping them would leave spikes that look like peaks.
   for (const boost of SMOOTHING_BOOSTS) {
+    out.boost = boost;
     out.smile = fitSmile(pts, T, boost);
     if (!out.smile) { out.reason = 'smile fit failed'; return out; }
     out.d = density(F, T, D, out.smile);
@@ -475,7 +482,28 @@ function fitExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
   }
   out.reason = densityProblem(out.d) || '';
   out.ok = !out.reason;
+  out.T = T;
   return out;
+}
+
+// The Fork verdict for a fitted expiry. A real two-outcome market is a broad
+// "frown" in the smile that survives harder smoothing; a false second peak
+// from noisy mids (wide spreads, even on a liquid chain) is a ripple that
+// does not. So a Fork found on the fitted density only counts if the smile
+// refitted FORK_STABILITY times smoother still shows it.
+const FORK_STABILITY = 4;
+
+function fitForkDiagnostics(f) {
+  const strikes = f.pts.map(p => p.K);
+  const diag = forkDiagnostics(f.d, f.F, strikes);
+  if (!diag.fork) return diag;
+  const smoother = fitSmile(f.pts, f.T, (f.boost || 1) * FORK_STABILITY);
+  const d = smoother && density(f.F, f.T, f.D, smoother);
+  if (!d || !forkDiagnostics(d, f.F, strikes).fork) {
+    diag.fork = null;
+    diag.reason = 'does not survive harder smoothing';
+  }
+  return diag;
 }
 
 // Why a density cannot be used, or null: missing, negative probability left
@@ -492,7 +520,7 @@ function modelExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
   const f = fitExpiry(byStrike, S, T, r, maxSpread, minStrikes);
   if (!f.ok) return null;
   const strikes = f.pts.map(p => p.K);
-  return Object.assign({ T, F: f.F, d: f.d, strikes }, describeShape(f.d, f.F, strikes));
+  return Object.assign({ T, F: f.F, d: f.d, strikes }, describeShape(f.d, f.F, strikes), { fork: fitForkDiagnostics(f).fork });
 }
 
 // ---------- Project: expiry shapes -> one value per future bar ----------
@@ -689,9 +717,9 @@ function skewTag(ratio) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     QS, normPdf, normCdf, black76Call, vega76, impliedVol, naturalSpline, pentaCholesky,
-    quoteMid, median, cleanExpiry, fitSmile, density, quantile, cdfAt, fork, forkDiagnostics, describeShape,
+    quoteMid, median, cleanExpiry, fitSmile, density, quantile, cdfAt, fork, forkDiagnostics, fitForkDiagnostics, describeShape,
     fitExpiry, densityProblem, modelExpiry, projectionTimeline, projectQuantiles, expiryKey, expiryPlan, selectExpiries, formatPrice, forkLabel, skewTag,
-    FORK_HEIGHT, FORK_SEPARATION, FORK_VALLEY, MAX_MASS_ERROR, MAX_ARBITRAGE, HORIZONS,
+    FORK_HEIGHT, FORK_SEPARATION, FORK_VALLEY, FORK_STABILITY, MAX_MASS_ERROR, MAX_ARBITRAGE, HORIZONS,
   };
 }
 // @node-only-end
