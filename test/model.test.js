@@ -92,6 +92,20 @@ test('bimodal: 50/50 mixture 10% apart returns both peaks within 1% and a valley
   }
 });
 
+test('bimodal through the production path (data gate and smoothing check): 50/50, 10% apart, 1-3% spreads', () => {
+  // The same case as above, but through modelExpiry, which is what the
+  // indicator draws: every gate applies, quotes are cut to 40 strikes a side.
+  const engine = require('../web/assets/engine.js');
+  let found = 0, total = 0;
+  for (const spreadPct of [0.01, 0.02, 0.03]) for (let seed = 1; seed <= 10; seed++) {
+    const S = 150, dte = 14, T = dte / 365, model = mix(S, dte, 0.05, 0.15);
+    const chain = { underlyingSymbolQuote: { lastPrice: S }, resultByExpiration: { x: fx.expiryQuotes({ S, r, T, model, spreadPct, seed }).byStrike } };
+    const shape = core.modelExpiry(engine.limitStrikes(chain, 40, S).resultByExpiration.x, S, T, r, 0.5, 8);
+    total++; if (shape && shape.fork) found++;
+  }
+  assert.equal(found, total, `${found} of ${total} drawn as a Fork`);
+});
+
 test('Fork detection: realistic earnings mixtures across spreads, weights and seeds', () => {
   let hits = 0, total = 0;
   for (let seed = 1; seed <= 8; seed++) for (const spreadPct of [0.01, 0.03, 0.05]) {

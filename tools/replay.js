@@ -38,7 +38,8 @@ async function main() {
     let line = `skipped: ${f.reason} (${f.pts.length} usable strikes)`;
     if (f.ok) {
       const shape = core.describeShape(f.d, f.F, f.pts.map(p => p.K));
-      line = `F ${f.F.toFixed(2)}  strikes ${f.pts.length}  2.5/50/97.5%: ${shape.q[0].toFixed(2)} / ${shape.q[3].toFixed(2)} / ${shape.q[6].toFixed(2)}  skew ${shape.skew.toFixed(2)}  ${shape.fork ? core.forkLabel(shape.fork) : 'no Fork'}`;
+      const fork = core.fitForkDiagnostics(f).fork; // the verdict the script draws, every check applied
+      line = `F ${f.F.toFixed(2)}  strikes ${f.pts.length}  2.5/50/97.5%: ${shape.q[0].toFixed(2)} / ${shape.q[3].toFixed(2)} / ${shape.q[6].toFixed(2)}  skew ${shape.skew.toFixed(2)}  ${fork ? core.forkLabel(fork) : 'no Fork'}`;
     }
     console.log(`${drawn.has(c.key) ? '* ' : '  '}${String(dte).padStart(3)} dte  ${c.x.code}:  ${line}`);
   }

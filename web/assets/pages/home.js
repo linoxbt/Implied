@@ -18,7 +18,7 @@
     var tag = first(texts, function (t) { return /^(Upside|Downside) tail|^Close to symmetric/.test(t); });
     var prev = d.close[d.close.length - 2], last = d.close[d.close.length - 1];
     return { d: d, last: last, chg: last / prev - 1, near30: near30, iv: near30 && M.atmIv(near30),
-      band: q50 && q025 && q975 ? { lo: q025.v, mid: q50.v, hi: q975.v, day: q50.bar, skew: Math.log(q975.v / q50.v) / Math.log(q50.v / q025.v) } : null,
+      band: q50 && q025 && q975 ? { lo: q025.v, mid: q50.v, hi: q975.v, day: q50.bar, skew: (q975.v - q50.v) / (q50.v - q025.v) } : null,
       tag: tag ? tag.replace(/ \(to \d+ days\)$/, '') : null,
       fork: fork && fork.replace(/^Fork: /, '').replace(/ · least likely.*/, ''), forkDay: head && +head.match(/(\d+)-DAY/)[1] };
   }

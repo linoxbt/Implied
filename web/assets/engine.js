@@ -1,8 +1,9 @@
 // Implied — engine shared by the website, the test suite and tools/replay.js.
 // 1. A stand-in for TrendSpider's script runtime: runs the real, unmodified
 //    implied.js and records what it paints, checking the API rules the
-//    script relies on (40 strikes per side, valid styles, fixed line names,
-//    100-value projections, serializable overlays). It is a model of
+//    script relies on (40 strikes per side, valid styles, named and unique
+//    lines, 100-value projections, serializable overlays). That names stay
+//    the same from run to run is checked by a test across scenarios. It is a model of
 //    TrendSpider's runtime, not the runtime itself: the assumptions still to
 //    confirm live are listed in docs/verify-in-trendspider.md.
 // 2. Synthetic option chains in TrendSpider's response shape (real-format
@@ -78,6 +79,7 @@
         o = o || {};
         rule(Array.isArray(series), 'paint_projection needs an array');
         rule(!o.style || STYLES.indexOf(o.style) >= 0, 'unknown style "' + o.style + '"');
+        rule(typeof o.name === 'string' && o.name && !out.projections.some(function (p) { return p.name === o.name; }), 'line names must be set and unique ("' + o.name + '")');
         var id = { i: out.projections.length };
         out.projections.push(Object.assign({ series: series.slice(0, MAX_PROJECTION), length: series.length }, o));
         ids.set(id, out.projections.length - 1);

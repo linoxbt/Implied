@@ -136,7 +136,22 @@ test('expiry codes match across formats (YYYYMMDD schedule, YYMMDD chain, or by 
   // nothing matches: a message that says so, not "not enough liquid strikes"
   const none = schedule.map(e => ({ expiration: { dte: e.expiration.dte, code: 'X' + e.expiration.dte } }));
   const out = await runIndicator({ ticker: 'SPY', schedule: none, chain, ...c });
-  assert.match(out.error, /^Options data for SPY did not include any expiration/);
+  assert.match(out.error, /^Options data for SPY did not return quotes for the expirations in its schedule\.$/);
+  // an empty calendar is still reported as such
+  const far = schedule.map(e => ({ expiration: { ...e.expiration, dte: e.expiration.dte + 200, timestamp: e.expiration.timestamp + 200 * 86400 } }));
+  assert.match((await runIndicator({ ticker: 'SPY', schedule: far, chain, ...c })).error, /^Options data for SPY did not include any expiration in the next 99 days\.$/);
+});
+
+test('no bids anywhere (market closed, feed empty): a message that says so, not "not enough liquid strikes"', async () => {
+  const { schedule, chain } = fx.SCENARIOS.SPY(), c = fx.candles(580);
+  const closed = JSON.parse(JSON.stringify(chain));
+  for (const k of Object.keys(closed.resultByExpiration)) for (const K of Object.keys(closed.resultByExpiration[k])) {
+    const row = closed.resultByExpiration[k][K];
+    for (const side of ['C', 'P']) if (row[side]) row[side].b = 0;
+  }
+  const out = await runIndicator({ ticker: 'SPY', schedule, chain: closed, ...c });
+  assert.match(out.error, /^No live bid\/ask quotes for SPY options right now/);
+  assert.ok(out.projections.length === 10, 'every paint call still ran');
 });
 
 test('an expiry every weekday: the default cloud still reaches weeks out', async () => {

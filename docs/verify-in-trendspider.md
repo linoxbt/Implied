@@ -21,7 +21,7 @@ Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider'
 
 | Assumption | If it is wrong |
 | --- | --- |
-| `fill()` between two `paint_projection()` lines shades the gap between them | The bands draw as lines only; the cloud still reads, but switch the fills to `arearange` projections |
+| `fill()` between two `paint_projection()` lines shades the gap between them | Only the dotted median would show, because the six band edges are hidden lines: set `hidden: false` on the band lines in `src/indicator.js` (or switch the fills to `arearange` projections) and rebuild |
 | A failing `assert` after every paint call still shows its message | Every paint call runs first (with empty series when there is nothing to draw), then `assert` reports the problem; the same message is also in the summary panel, so it shows either way |
 | `underlyingSymbolQuote.lastPrice` may be stale after hours | Already handled: the cloud starts from the chain's own parity spot, not the quote |
 | Schedule `timestamp` is in seconds or milliseconds, and candle `time` likewise | Both units are accepted; a different field name would fall back to `dte` |

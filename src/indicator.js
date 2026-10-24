@@ -4,8 +4,10 @@
 // TrendSpider's scripting reference (platform-docs.trendspider.com/scripting).
 // Two platform rules shape the paint section:
 //   - every paint(), fill() and paint_overlay() call runs on every execution,
-//   - line names never change (the platform keys saved lines by name),
-// so anything that varies (Fork prices, skew wording) goes in the overlay.
+//   - line names never change (the platform keys saved lines by name).
+// The text that varies (Fork prices, skew wording) is kept together in the
+// summary panel (paint_overlay), one fixed place on the chart, rather than as
+// labels at each expiry: a design choice for a chart that reads at a glance.
 // ============================================================================
 
 describe_indicator('Implied', 'price', { shortName: 'Implied' });
@@ -69,8 +71,25 @@ async function buildCloud() {
     schedule, resultByExpiration: chain.resultByExpiration, spot, lastTime, rate: RATE,
     maxSpread: MAX_SPREAD, minStrikes: MIN_STRIKES, count: EXPIRIES, maxBars: MAX_PROJECTION, mode: PROJECTION_DAYS,
   });
-  need(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + (PROJECTION_DAYS === 'trading' ? ' trading days.' : ' days.'));
-  need(shapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
+  if (!candidates.length) {
+    // Expiries in the schedule that the chain did not return are a data
+    // mismatch, not an empty calendar: say which.
+    const listed = schedule.some(e => e && e.expiration && Number(e.expiration.dte) >= 1 && Number(e.expiration.dte) < MAX_PROJECTION);
+    need(false, listed
+      ? 'Options data for ' + current.ticker + ' did not return quotes for the expirations in its schedule.'
+      : 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + (PROJECTION_DAYS === 'trading' ? ' trading days.' : ' days.'));
+  }
+  if (!shapes.length) {
+    // No two-sided quote anywhere usually means the market is closed and the
+    // feed has no bids, rather than an illiquid ticker.
+    const twoSided = candidates.some(c => Object.keys(c.byStrike || {}).some(k => {
+      const row = c.byStrike[k] || {};
+      return ['C', 'P'].some(side => row[side] && Number(row[side].b) > 0 && Number(row[side].a) > Number(row[side].b));
+    }));
+    need(false, twoSided
+      ? 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.'
+      : 'No live bid/ask quotes for ' + current.ticker + ' options right now (outside market hours?). Implied needs two-sided quotes.');
+  }
 
   // The model's clock (T) runs from now; the chart's runs from the last
   // candle, so each expiry is placed at its own day offset. The cloud starts
@@ -118,13 +137,21 @@ fill(bands[2], bands[4], COLORS.band, 0.30, 'Implied core 50%');
 // ---------- Paint: the Fork ----------
 // Short ticks on the last three bars up to each forked expiry: one series per
 // mark, always painted (all null when there is no Fork or it is switched off).
+// A tick is at least two bars wide, so a Fork one day out is still a visible
+// line, and a Fork whose tick would touch the previous one is left out, so
+// expiries on consecutive days never merge into one long line.
 const forkShapes = expiryShapes.filter(s => s.fork);
 const markLength = Math.min(MAX_PROJECTION, projTimeline.times.length);
 const forkMarks = { high: Array(markLength).fill(null), low: Array(markLength).fill(null), valley: Array(markLength).fill(null) };
 if (SHOW_FORK) {
+  let lastEnd = -Infinity;
   for (const s of forkShapes) {
     const bar = projTimeline.barOfDay[s.day];
-    for (let i = Math.max(1, bar - 2); i <= bar && i < markLength; i++) {
+    let start = Math.max(1, bar - 2), end = Math.min(bar, markLength - 1);
+    if (end - start < 1) start = Math.max(0, end - 1);
+    if (start <= lastEnd + 1) continue;
+    lastEnd = end;
+    for (let i = start; i <= end; i++) {
       forkMarks.high[i] = s.fork.high * SCALE;
       forkMarks.low[i] = s.fork.low * SCALE;
       forkMarks.valley[i] = s.fork.valley * SCALE;
@@ -194,7 +221,7 @@ function densityFor(s) {
     while (j < d.Ks.length - 1 && d.Ks[j] < K) j++;
     const t = (K - d.Ks[j - 1]) / (d.Ks[j] - d.Ks[j - 1]);
     const shown = K * SCALE;
-    labels.push(shown < 100 ? shown.toFixed(1) : Math.round(shown).toString());
+    labels.push(shown < 10 ? shown.toFixed(2) : shown < 100 ? shown.toFixed(1) : Math.round(shown).toString());
     values.push(+(d.pdf[j - 1] + t * (d.pdf[j] - d.pdf[j - 1])).toPrecision(4));
   }
   return { labels, values };

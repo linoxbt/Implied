@@ -431,8 +431,9 @@ function fork(d, F, strikes) {
   return forkDiagnostics(d, F, strikes).fork;
 }
 
-// Skew ratio: upside tail over downside tail, measured in log price
-// (ln(q97.5/q50) / ln(q50/q2.5)), so a plain lognormal with no skew reads 1.
+// Skew ratio: upside tail over downside tail in price, (q97.5 - q50) /
+// (q50 - q2.5): exactly how much wider the cloud is drawn above the median
+// than below it, so the sentence always agrees with the chart.
 // Tail weights: the probability below 0.9 F and above 1.1 F. `quoted` is the
 // strike range the quotes cover and `coverage` the probability inside it;
 // bands beyond it come from the smile's extrapolated wings.
@@ -442,8 +443,7 @@ function describeShape(d, F, strikes) {
   const lo = strikes && strikes.length ? strikes[0] : q025, hi = strikes && strikes.length ? strikes[strikes.length - 1] : q975;
   return {
     q,
-    fork: fork(d, F, strikes),
-    skew: Math.log(q975 / q50) / (Math.log(q50 / q025) || 1e-12),
+    skew: (q975 - q50) / ((q50 - q025) || 1e-12),
     tails: { below: cdfAt(d, 0.9 * F), above: 1 - cdfAt(d, 1.1 * F) },
     quoted: { lo, hi },
     coverage: cdfAt(d, hi) - cdfAt(d, lo),
@@ -495,8 +495,11 @@ function fitExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
 // "frown" in the smile that survives harder smoothing; a false second peak
 // from noisy mids (wide spreads, even on a liquid chain) is a ripple that
 // does not. So a Fork found on the fitted density only counts if the smile
-// refitted FORK_STABILITY times smoother still shows it.
-const FORK_STABILITY = 4;
+// refitted FORK_STABILITY (8) times smoother still has two real peaks with a dip
+// between them (valley under FORK_STABLE_VALLEY, 92%, of the smaller peak). Real
+// valleys rise a little under smoothing, so this is looser than the 70% rule;
+// noise ripples flatten out completely.
+const FORK_STABILITY = 8, FORK_STABLE_VALLEY = 0.92;
 
 function fitForkDiagnostics(f) {
   const strikes = f.pts.map(p => p.K);
@@ -504,7 +507,8 @@ function fitForkDiagnostics(f) {
   if (!diag.fork) return diag;
   const smoother = fitSmile(f.pts, f.T, (f.boost || 1) * FORK_STABILITY);
   const d = smoother && density(f.F, f.T, f.D, smoother);
-  if (!d || !forkDiagnostics(d, f.F, strikes).fork) {
+  const again = d && forkDiagnostics(d, f.F);
+  if (!again || again.peaks < 2 || !(again.height >= FORK_HEIGHT) || !(again.valley < FORK_STABLE_VALLEY)) {
     diag.fork = null;
     diag.reason = 'does not survive harder smoothing';
   }
@@ -534,7 +538,8 @@ function modelExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
 // every calendar day is a bar (what TrendSpider's own Expected Move script
 // assumes); in 'trading' mode only weekdays are bars. t is always calendar
 // time in years, so the model's clock is the same either way.
-// NYSE full-day closures (trading mode only).
+// NYSE full-day closures, used only in trading-day mode (PROJECTION_DAYS =
+// 'trading' in src/indicator.js). Extend the list each year.
 const MARKET_HOLIDAYS = new Set([
   '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
   '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18', '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24',
@@ -710,7 +715,7 @@ function forkLabel(f) {
   return 'Fork: ' + formatPrice(f.low) + ' / ' + formatPrice(f.high) + ' · least likely ' + formatPrice(f.valley);
 }
 
-// Skew ratio = upside tail / downside tail in log space: ln(q97.5/q50) / ln(q50/q2.5).
+// Skew ratio = upside tail / downside tail in price: (q97.5 - q50) / (q50 - q2.5).
 function skewTag(ratio) {
   if (!Number.isFinite(ratio) || ratio <= 0) return null;
   if (ratio > 1.15) return 'Upside tail ' + ratio.toFixed(1) + '× downside';
@@ -724,8 +729,10 @@ function skewTag(ratio) {
 // TrendSpider's scripting reference (platform-docs.trendspider.com/scripting).
 // Two platform rules shape the paint section:
 //   - every paint(), fill() and paint_overlay() call runs on every execution,
-//   - line names never change (the platform keys saved lines by name),
-// so anything that varies (Fork prices, skew wording) goes in the overlay.
+//   - line names never change (the platform keys saved lines by name).
+// The text that varies (Fork prices, skew wording) is kept together in the
+// summary panel (paint_overlay), one fixed place on the chart, rather than as
+// labels at each expiry: a design choice for a chart that reads at a glance.
 // ============================================================================
 
 describe_indicator('Implied', 'price', { shortName: 'Implied' });
@@ -789,8 +796,25 @@ async function buildCloud() {
     schedule, resultByExpiration: chain.resultByExpiration, spot, lastTime, rate: RATE,
     maxSpread: MAX_SPREAD, minStrikes: MIN_STRIKES, count: EXPIRIES, maxBars: MAX_PROJECTION, mode: PROJECTION_DAYS,
   });
-  need(candidates.length > 0, 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + (PROJECTION_DAYS === 'trading' ? ' trading days.' : ' days.'));
-  need(shapes.length > 0, 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.');
+  if (!candidates.length) {
+    // Expiries in the schedule that the chain did not return are a data
+    // mismatch, not an empty calendar: say which.
+    const listed = schedule.some(e => e && e.expiration && Number(e.expiration.dte) >= 1 && Number(e.expiration.dte) < MAX_PROJECTION);
+    need(false, listed
+      ? 'Options data for ' + current.ticker + ' did not return quotes for the expirations in its schedule.'
+      : 'Options data for ' + current.ticker + ' did not include any expiration in the next ' + (MAX_PROJECTION - 1) + (PROJECTION_DAYS === 'trading' ? ' trading days.' : ' days.'));
+  }
+  if (!shapes.length) {
+    // No two-sided quote anywhere usually means the market is closed and the
+    // feed has no bids, rather than an illiquid ticker.
+    const twoSided = candidates.some(c => Object.keys(c.byStrike || {}).some(k => {
+      const row = c.byStrike[k] || {};
+      return ['C', 'P'].some(side => row[side] && Number(row[side].b) > 0 && Number(row[side].a) > Number(row[side].b));
+    }));
+    need(false, twoSided
+      ? 'Not enough liquid strikes on ' + current.ticker + ' to build a distribution.'
+      : 'No live bid/ask quotes for ' + current.ticker + ' options right now (outside market hours?). Implied needs two-sided quotes.');
+  }
 
   // The model's clock (T) runs from now; the chart's runs from the last
   // candle, so each expiry is placed at its own day offset. The cloud starts
@@ -838,13 +862,21 @@ fill(bands[2], bands[4], COLORS.band, 0.30, 'Implied core 50%');
 // ---------- Paint: the Fork ----------
 // Short ticks on the last three bars up to each forked expiry: one series per
 // mark, always painted (all null when there is no Fork or it is switched off).
+// A tick is at least two bars wide, so a Fork one day out is still a visible
+// line, and a Fork whose tick would touch the previous one is left out, so
+// expiries on consecutive days never merge into one long line.
 const forkShapes = expiryShapes.filter(s => s.fork);
 const markLength = Math.min(MAX_PROJECTION, projTimeline.times.length);
 const forkMarks = { high: Array(markLength).fill(null), low: Array(markLength).fill(null), valley: Array(markLength).fill(null) };
 if (SHOW_FORK) {
+  let lastEnd = -Infinity;
   for (const s of forkShapes) {
     const bar = projTimeline.barOfDay[s.day];
-    for (let i = Math.max(1, bar - 2); i <= bar && i < markLength; i++) {
+    let start = Math.max(1, bar - 2), end = Math.min(bar, markLength - 1);
+    if (end - start < 1) start = Math.max(0, end - 1);
+    if (start <= lastEnd + 1) continue;
+    lastEnd = end;
+    for (let i = start; i <= end; i++) {
       forkMarks.high[i] = s.fork.high * SCALE;
       forkMarks.low[i] = s.fork.low * SCALE;
       forkMarks.valley[i] = s.fork.valley * SCALE;
@@ -914,7 +946,7 @@ function densityFor(s) {
     while (j < d.Ks.length - 1 && d.Ks[j] < K) j++;
     const t = (K - d.Ks[j - 1]) / (d.Ks[j] - d.Ks[j - 1]);
     const shown = K * SCALE;
-    labels.push(shown < 100 ? shown.toFixed(1) : Math.round(shown).toString());
+    labels.push(shown < 10 ? shown.toFixed(2) : shown < 100 ? shown.toFixed(1) : Math.round(shown).toString());
     values.push(+(d.pdf[j - 1] + t * (d.pdf[j] - d.pdf[j - 1])).toPrecision(4));
   }
   return { labels, values };

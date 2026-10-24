@@ -4,9 +4,9 @@ Paste the block below into the TrendSpider Store description. Keep `#TSBuild26` 
 
 Screenshots (Daily chart, about 6 months of history visible, so the cloud fills the right third):
 
-1. SPY: the much wider downside tail and the "Downside tail … upside" line in the summary panel (2.8× on the Oct 23 close).
+1. SPY: the much wider downside tail and the "Downside tail … upside" line in the summary panel (2.4× on the Oct 23 close).
 2. An event stock. Use a Fork if a live chart shows one: check binary-event tickers (an FDA decision, a deal vote) with `npm run chain -- <TICKER>` first. Otherwise a stock reporting this week, where the cloud widens sharply at the first post-earnings expiry. On Oct 23 closing chains, none of 69 liquid tickers (the README's real-chain section), earnings weeks included, priced two outcomes, so do not plan on a megacap Fork. Never show a simulated Fork as if it were a live chart.
-3. A high-IV stock with a fat right tail (GME read "Upside tail 1.5× downside" on Oct 23).
+3. A high-IV stock with a fat right tail (GME read "Upside tail 2.4× downside" on Oct 23).
 
 ---
 
@@ -21,8 +21,8 @@ HOW TO READ IT
 - Dense core: the middle 50% of outcomes (25th-75th percentile)
 - Lighter bands: the 80% and 95% ranges
 - Dotted line: the median outcome
-- One side wider than the other: the market is paying more for that tail. The summary panel says by how much (measured in percentage moves), e.g. "Downside tail 1.4× upside". "Close to symmetric" means neither tail stands out
-- Orange Fork: shown only when the market prices two separate outcomes, as before a binary event (an FDA decision, a deal vote). It is rare by design: most earnings are priced as one wide range, and then Implied draws no Fork. The grey mark between the two outcomes is the least likely zone. The summary panel gives the prices, e.g. "Fork: $182.00 / $201.00 · least likely $190.00". The three Fork lines in the legend stay empty when there is no Fork. To see one, try the interactive Fork demo (simulated chains): implied.netlify.app/fork/
+- One side wider than the other: the market prices bigger moves in that direction. The summary panel says how much wider that side of the cloud is, e.g. "Downside tail 1.4× upside". "Close to symmetric" means neither tail stands out
+- Orange Fork: shown only when the market prices two separate outcomes, as before a binary event (an FDA decision, a deal vote). It is rare by design: most earnings are priced as one wide range, and then Implied draws no Fork. The grey mark between the two outcomes is the least likely zone. The summary panel gives the prices, e.g. "Fork: $182.00 / $201.00 · least likely $190.00". The three Fork lines in the legend stay empty when there is no Fork. On a Fork, the dense core band still spans both outcomes; the orange ticks show where the probability actually sits. To see one, try the interactive Fork demo (simulated chains): implied.netlify.app/fork/
 - Summary panel (top left): a small chart of the distribution, its median and 95% range in dollars, and the chance of a 10% move either way
 - "Quotes cover $X – $Y; the tails beyond are extrapolated": the 95% range reaches past the strikes TrendSpider returns (40 each side), so its outer edge comes from the fitted smile rather than from quotes
 

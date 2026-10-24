@@ -11,7 +11,7 @@ Each item is a disqualification or scoring risk, so each is a release gate. Sour
 
 - [ ] Every item in [verify-in-trendspider.md](verify-in-trendspider.md) checked; code changed where needed.
 - [x] `npm test` passes and `npm run check` says dist is up to date (CI green on `main`).
-- [x] Real chains replay cleanly: 22 tickers from Cboe's delayed quotes (Oct 23 close), see the README's "Tested on real chains".
+- [x] Real chains replay cleanly: 22 tickers from Cboe's delayed quotes (Oct 23 close), plus a Fork scan of 69; see the README's "Tested on real chains".
 - [ ] Real chains saved from TrendSpider itself for SPY and one earnings-week stock; both replay cleanly (`node tools/replay.js`). They stay on your machine: OPRA data is licensed and `chains/` is git-ignored apart from the synthetic examples.
 - [ ] Risk-free rate default still close to the 3-month T-bill yield (4.0% at release); update the default in `src/indicator.js` and the docs if it has moved by more than half a point.
 - [ ] The temporary `console.log` dump line removed.

@@ -1,13 +1,19 @@
 // The wider Fork stress run quoted in the README: 360 two-outcome expiries
 // (must be detected) and 2,250 one-outcome expiries (must not be), over 30
 // random quote sets, three spread/noise levels, several smiles and horizons.
+// Every chain is cut to the 40 strikes a side TrendSpider returns, as the
+// script sees it.
 //   npm run stress
 'use strict';
 const core = require('../src/core.js');
 const fx = require('../test/fixtures.js');
+const { limitStrikes } = require('../web/assets/engine.js');
 
 const r = 0.04;
-const model = (byStrike, S, dte) => core.modelExpiry(byStrike, S, dte / 365, r, 0.5, 8);
+const model = (byStrike, S, dte) => {
+  const cut = limitStrikes({ underlyingSymbolQuote: { lastPrice: S }, resultByExpiration: { x: byStrike } }, 40, S).resultByExpiration.x;
+  return core.modelExpiry(cut, S, dte / 365, r, 0.5, 8);
+};
 let hits = 0, tot = 0, falses = 0, ftot = 0, skipped = 0;
 const t0 = Date.now();
 for (let seed = 1; seed <= 30; seed++) {

@@ -43,15 +43,27 @@ test('a stale or after-hours quoted price does not move the cloud (B2)', async (
   assert.ok(Math.abs(m2 / m1 - 1) < 0.005, `median ${m1} vs ${m2} with an 8% stale quote`);
 });
 
-test('skew is measured in log price: a flat smile reads symmetric, put skew reads downside (B3)', () => {
-  const tagAt = model => {
-    const T = 60 / 365, { byStrike } = fx.expiryQuotes({ S: 100, r, T, model, spreadPct: 0.01, noise: 0, seed: 1 });
+test('the skew sentence always agrees with the cloud drawn on the chart (B3)', async () => {
+  // The ratio is measured in price, as the bands are drawn: a calm flat smile
+  // is symmetric, index put skew reads downside, and a high-volatility stock
+  // whose smile tilts down a little still reads upside, because its cloud
+  // really is wider above the median in dollars.
+  const T = 60 / 365, tagAt = model => {
+    const { byStrike } = fx.expiryQuotes({ S: 100, r, T, model, spreadPct: 0.01, noise: 0, seed: 1 });
     return core.skewTag(core.modelExpiry(byStrike, 100, T, r, 0.5, 8).skew);
   };
-  assert.equal(tagAt(fx.smile(0.3)), null, 'flat 30%');
-  assert.equal(tagAt(fx.smile(0.5)), null, 'flat 50%');
-  assert.match(tagAt(fx.smile(0.4, -0.25, 0.5)), /^Downside tail/);
+  assert.equal(tagAt(fx.smile(0.12)), null, 'calm flat 12%');
+  assert.match(tagAt(fx.smile(0.3, -0.25, 0.5)), /^Downside tail/);
   assert.match(tagAt(fx.smile(0.6, 0.4, 0.5)), /^Upside tail/);
+  for (const model of [fx.smile(0.2), fx.smile(0.3, -0.3, 0.5), fx.smile(0.6, -0.1, 0.5), fx.smile(0.9), fx.smile(0.5, 0.3, 1)]) {
+    const t = fx.ticker({ S: 100, spreadPct: 0.02, expiries: [7, 14, 28, 49].map(dte => ({ dte, model })) });
+    const out = await runIndicator({ ticker: 'T', schedule: t.schedule, chain: t.chain, ...fx.candles(100) });
+    const [lo, mid, hi] = [0, 3, 6].map(j => lastVal(out.projections[j].series));
+    const tag = overlayText(out).find(x => /tail|symmetric/.test(x)), up = hi - mid, down = mid - lo;
+    if (/^Upside/.test(tag)) assert.ok(up > down * 1.15, tag + ` but drawn up ${up.toFixed(2)} / down ${down.toFixed(2)}`);
+    else if (/^Downside/.test(tag)) assert.ok(down > up * 1.15, tag + ` but drawn up ${up.toFixed(2)} / down ${down.toFixed(2)}`);
+    else assert.ok(up < down * 1.16 && down < up * 1.16, tag + ` but drawn up ${up.toFixed(2)} / down ${down.toFixed(2)}`);
+  }
 });
 
 test('one stale quote with a tight spread is dropped, not fitted into a false Fork (B4)', () => {
@@ -329,4 +341,19 @@ test('a Fork on a low-priced stock is found: cent-wide wing quotes are kept', as
   assert.equal(shown, 6, 'the Fork shows on every seed (was about 1 in 3 when 0.02 / 0.04 quotes were rejected as too wide)');
   assert.ok(core.quoteMid({ b: 0.02, a: 0.04 }, 0.5), 'a 2-cent spread is accepted');
   assert.equal(core.quoteMid({ b: 1.0, a: 2.0 }, 0.5), null, 'a dollar-wide spread on a $1.50 option is not');
+});
+
+test('Fork ticks stay short: consecutive daily expiries do not merge into lines, a 1-day Fork is still drawn', async () => {
+  const S = 190, days = fx.weekdays(70);
+  const t = fx.ticker({ S, spreadPct: 0.02, expiries: days.map(dte => ({ dte, model: dte <= 2 ? fx.smile(0.3, -0.2, 0.8) : fx.mix(S, dte, 0.08, 0.22) })) });
+  const out = await runIndicator({ ticker: 'XBIN', schedule: t.schedule, chain: t.chain, ...fx.candles(S) });
+  const runs = series => { const r = []; series.forEach((v, i) => { if (v == null) return; if (r.length && r[r.length - 1][1] === i - 1) r[r.length - 1][1] = i; else r.push([i, i]); }); return r; };
+  const ticks = runs(out.projections[7].series);
+  assert.ok(ticks.length >= 1, 'a Fork is drawn');
+  for (const [a, b] of ticks) assert.ok(b - a >= 1 && b - a <= 2, `tick ${a}-${b} is 2 to 3 bars long`);
+  // A Fork at an expiry one day out: two points, not one invisible dot.
+  const one = fx.ticker({ S, spreadPct: 0.02, expiries: [1, 8, 15, 29].map(dte => ({ dte, model: fx.mix(S, dte, 0.08, 0.22) })) });
+  const o1 = await runIndicator({ ticker: 'X1', schedule: one.schedule, chain: one.chain, ...fx.candles(S) });
+  const first = runs(o1.projections[7].series)[0];
+  assert.ok(first && first[1] - first[0] >= 1, JSON.stringify(runs(o1.projections[7].series)));
 });
