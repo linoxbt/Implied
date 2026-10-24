@@ -197,8 +197,9 @@
     return { schedule: schedule, chain: { underlyingSymbolQuote: { lastPrice: p.spot || p.S }, resultByExpiration: res } };
   }
 
-  // The last weekday (UTC midnight): the simulated chart's last candle, so
-  // weekly expiries land on Fridays and days-to-expiry match the chart.
+  // The last weekday (UTC midnight): the simulated chart's last candle.
+  // Expiries are placed whole weeks out from it (on that weekday, not always
+  // a Friday), so days-to-expiry match the chart.
   function todayUtc() {
     var d = new Date(), t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), dow = new Date(t).getUTCDay();
     return t - (dow === 6 ? 1 : dow === 0 ? 2 : 0) * 86400000;
@@ -259,8 +260,8 @@
   function explain(byStrike, S, T, r, maxSpread, minStrikes) {
     var f = core.fitExpiry(byStrike, S, T, r, maxSpread, minStrikes == null ? 8 : minStrikes);
     var strikes = f.pts.map(function (p) { return p.K; });
-    var shape = f.ok ? core.describeShape(f.d, f.F, strikes) : null;
-    var diag = f.ok ? core.forkDiagnostics(f.d, f.F, strikes) : null;
+    var diag = f.ok ? core.fitForkDiagnostics(f) : null;
+    var shape = f.ok ? Object.assign(core.describeShape(f.d, f.F, strikes), { fork: diag.fork }) : null;
     return { F: f.F, D: f.D, pts: f.pts, smile: f.smile, d: f.ok ? f.d : null, shape: shape, diag: diag, reason: f.reason, total: Object.keys(byStrike || {}).length };
   }
 

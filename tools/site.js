@@ -98,15 +98,16 @@ function header(slug) {
   <nav aria-label="Pages">${NAV.map(n => `<a href="/${n.slug ? n.slug + '/' : ''}"${n.slug === slug ? ' aria-current="page"' : ''}><b>${n.name}</b><small>${n.blurb}</small></a>`).join('')}</nav>
 </div></div>
 <div class="cmdk" id="cmdk" hidden><div class="cmdk-box" role="dialog" aria-modal="true" aria-label="Search">
-  <div class="cmdk-in"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m14 14 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="cmdk-q" type="text" placeholder="Search ticker or page" aria-label="Search tickers and pages" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <div class="cmdk-in"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m14 14 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="cmdk-q" type="text" role="combobox" aria-expanded="true" aria-controls="cmdk-list" aria-autocomplete="list" placeholder="Search ticker or page" aria-label="Search tickers and pages" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
   <div class="cmdk-list" id="cmdk-list" role="listbox" aria-label="Results">
-    <p class="cmdk-empty" hidden>No match. This site has simulated tickers only; in TrendSpider, Implied reads any ticker with listed US options.</p>
-    <p class="cmdk-h">Tickers (simulated chains)</p>
-    ${TICKERS.map(t => `<a role="option" href="/symbol/?t=${t.sym}" data-k="${t.sym} ${esc(t.name)}"><b>${t.sym}</b><span>${esc(t.name)}</span></a>`).join('')}
-    <a role="option" href="/analyze/" data-k="analyze your own chain upload trendspider"><b>Your chain</b><span>Analyze a chain saved from TrendSpider</span></a>
-    <p class="cmdk-h">Pages</p>
-    ${NAV.filter(n => n.slug && n.slug !== 'symbol').map(n => `<a role="option" href="/${n.slug}/" data-k="${n.name} ${esc(n.blurb)}"><b>${n.name}</b><span>${esc(n.blurb)}</span></a>`).join('')}
+    <div role="group" aria-label="Tickers (simulated chains)"><p class="cmdk-h" aria-hidden="true">Tickers (simulated chains)</p>
+    ${TICKERS.map(t => `<a role="option" aria-selected="false" href="/symbol/?t=${t.sym}" data-k="${t.sym} ${esc(t.name)}"><b>${t.sym}</b><span>${esc(t.name)}</span></a>`).join('')}
+    <a role="option" aria-selected="false" href="/analyze/" data-k="analyze your own chain upload trendspider"><b>Your chain</b><span>Analyze a chain saved from TrendSpider</span></a></div>
+    <div role="group" aria-label="Pages"><p class="cmdk-h" aria-hidden="true">Pages</p>
+    ${NAV.filter(n => n.slug && n.slug !== 'symbol').map(n => `<a role="option" aria-selected="false" href="/${n.slug}/" data-k="${n.name} ${esc(n.blurb)}"><b>${n.name}</b><span>${esc(n.blurb)}</span></a>`).join('')}</div>
   </div>
+  <p class="cmdk-empty" role="status" hidden>No match. This site has simulated tickers only; in TrendSpider, Implied reads any ticker with listed US options.</p>
+</div>
 </div></div>`;
 }
 
@@ -114,9 +115,9 @@ function footer() {
   return `<footer class="foot"><div class="wrap">
   <div class="foot-grid">
     <div><a class="brand" href="/"><img src="/assets/logo-mark.svg?v=${VERSION}" alt=""><b>Implied</b></a><p>The options market's full implied probability distribution, painted into the future on your TrendSpider chart. Free and open source.</p></div>
-    <div><h5>Product</h5><a href="/symbol/">Explore</a><a href="/lab/">Lab</a><a href="/fork/">The Fork</a><a href="/analyze/">Analyze a chain</a></div>
-    <div><h5>Resources</h5><a href="/how-it-works/">How it works</a><a href="/validation/">Validation</a><a href="/install/">Install</a><a href="${REPO}">GitHub</a></div>
-    <div><h5>Market</h5><div class="clock"><i id="mk"></i><span id="clock">US equities</span></div><p class="small">Charts on this site use simulated chains. In TrendSpider, Implied reads the live options market.</p></div>
+    <div><h2>Product</h2><a href="/symbol/">Explore</a><a href="/lab/">Lab</a><a href="/fork/">The Fork</a><a href="/analyze/">Analyze a chain</a></div>
+    <div><h2>Resources</h2><a href="/how-it-works/">How it works</a><a href="/validation/">Validation</a><a href="/install/">Install</a><a href="${REPO}">GitHub</a></div>
+    <div><h2>Market</h2><div class="clock"><i id="mk"></i><span id="clock">US equities</span></div><p class="small">Charts on this site use simulated chains. In TrendSpider, Implied reads the live options market.</p></div>
   </div>
   <div class="bottom"><span>© 2026 Implied · Apache-2.0 · Built for the TrendSpider Hackathon (#TSBuild26)</span><span>Risk-neutral: the price of each outcome, not a forecast. Not investment advice.</span></div>
 </div></footer>`;

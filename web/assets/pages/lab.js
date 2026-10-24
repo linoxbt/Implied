@@ -56,6 +56,6 @@
     a.href = URL.createObjectURL(blob); a.download = 'implied-lab-chain.json'; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
   var q = new URLSearchParams(location.search).get('preset');
-  if (q && P[q]) { state = Object.assign({ seed: 7 }, P[q]); document.querySelectorAll('[data-preset]').forEach(function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-preset') === q); }); }
+  if (q && Object.prototype.hasOwnProperty.call(P, q)) { state = Object.assign({ seed: 7 }, P[q]); document.querySelectorAll('[data-preset]').forEach(function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-preset') === q); }); }
   sync(); run();
 })();

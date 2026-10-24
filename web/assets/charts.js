@@ -3,7 +3,7 @@
 (function (global) {
   'use strict';
   var NS = 'http://www.w3.org/2000/svg';
-  var C = { bg: '#ffffff', grid: '#eef1f5', axis: '#6b7280', price: '#111827', band: '#3b82f6', median: '#64748b', fork: '#f59e0b', valley: '#94a3b8', truth: 'rgba(15,23,42,.55)', dropped: '#cbd5e1', bell: '#ec4899' };
+  var C = { bg: '#ffffff', grid: '#eef1f5', axis: '#6b7280', price: '#111827', band: '#3b82f6', median: '#64748b', fork: '#f59e0b', forkText: '#b45309', valley: '#94a3b8', valleyText: '#64748b', truth: 'rgba(15,23,42,.55)', dropped: '#cbd5e1', bell: '#ec4899' };
   var QLABEL = ['2.5%', '10%', '25%', 'Median', '75%', '90%', '97.5%'];
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -222,7 +222,7 @@
           var v = opts.fork[m[0]];
           el('line', { x1: X(v), x2: X(v), y1: pad.t + 16, y2: h - pad.b, stroke: m[1], 'stroke-width': m[0] === 'valley' ? 1.5 : 2.5, 'stroke-dasharray': m[0] === 'valley' ? '5 4' : null }, svg);
           var crowded = m[0] === 'valley' && (Math.abs(X(v) - X(opts.fork.high)) < 70 || Math.abs(X(v) - X(opts.fork.low)) < 70);
-          if (!crowded) el('text', { x: X(v), y: pad.t + 10, fill: m[1], 'font-size': 11, 'text-anchor': 'middle', 'font-weight': 600 }, svg).textContent = m[0] === 'valley' ? 'least likely' : fmtPrice(v);
+          if (!crowded) el('text', { x: X(v), y: pad.t + 10, fill: m[0] === 'valley' ? C.valleyText : C.forkText, 'font-size': 11, 'text-anchor': 'middle', 'font-weight': 600 }, svg).textContent = m[0] === 'valley' ? 'least likely' : fmtPrice(v);
         });
       }
       el('line', { x1: pad.l, x2: w - pad.r, y1: h - pad.b, y2: h - pad.b, stroke: 'rgba(15,23,42,.2)' }, svg);

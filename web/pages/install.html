@@ -6,6 +6,7 @@
 </section>
 
 <section class="wrap">
+  <h2 class="sr">Steps</h2>
   <div class="features">
     <div class="feature f-lime"><span class="n">01</span><div><h3>Copy</h3><p>Copy the script, or download <code>implied.js</code>.</p><div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap"><button class="pill solid" data-copy>Copy the script</button><a class="pill" href="/implied.js" download>Download</a></div></div></div>
     <div class="feature f-pink"><span class="n">02</span><div><h3>Paste</h3><p>In TrendSpider, open the Custom JS indicator editor, create a new indicator, paste, and save.</p></div></div>
@@ -29,7 +30,7 @@
   <div class="table-wrap"><table class="data"><thead><tr><th class="l">Setting</th><th>Default</th><th>Range</th><th class="l">What it does</th></tr></thead><tbody>
     <tr><td>Expirations to project</td><td>4</td><td>1–8</td><td class="l">How far into the future the cloud reaches</td></tr>
     <tr><td>Risk-free rate (%)</td><td>4.0</td><td>0–15</td><td class="l">Discounting in the parity and pricing steps</td></tr>
-    <tr><td>Max bid-ask spread (fraction of mid)</td><td>0.5</td><td>0.05–2</td><td class="l">Drops stale, illiquid quotes</td></tr>
+    <tr><td>Max bid-ask spread (fraction of mid)</td><td>0.5</td><td>0.05–2</td><td class="l">Drops stale, illiquid quotes (a spread of $0.05 or less is always kept)</td></tr>
     <tr><td>Min usable strikes per expiry</td><td>8</td><td>5–60</td><td class="l">Skips expiries too thin to model</td></tr>
     <tr><td>Show Fork</td><td>On</td><td>On / off</td><td class="l">Hides the Fork marks and Fork line in the summary panel</td></tr>
   </tbody></table></div>

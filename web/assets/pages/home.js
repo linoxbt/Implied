@@ -5,27 +5,32 @@
   function el(tag, attrs, parent) { var n = document.createElementNS(NS, tag); for (var k in attrs) if (attrs[k] != null) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; }
 
   // ---------- Market overview table ----------
-  // Only the expiries the row shows are modelled: the one nearest 30 days,
-  // the farthest within 91, and the Fork the script itself found (its panel).
+  // Every number in a row comes from the script's own run: the painted bands
+  // at the farthest expiry it draws, and the text of its summary panel. Only
+  // the ATM IV column models one more expiry (the one nearest 30 days).
   function first(list, test) { for (var i = 0; i < list.length; i++) if (test(list[i])) return list[i]; return null; }
+  function lastPainted(series) { for (var i = series.length - 1; i >= 0; i--) if (series[i] != null) return { bar: i, v: series[i] }; return null; }
   function summary(d) {
-    var win = d.expiries.filter(function (e) { return e.dte <= 91; });
-    var near30 = first(win.slice().sort(function (a, b) { return Math.abs(a.dte - 30) - Math.abs(b.dte - 30); }), function (e) { return e.ok; });
-    var far = first(win.slice().reverse(), function (e) { return e.ok; }), sh = far && far.ex.shape;
+    var near30 = first(d.expiries.slice().sort(function (a, b) { return Math.abs(a.dte - 30) - Math.abs(b.dte - 30); }), function (e) { return e.ok; });
+    var P = d.out.error ? [] : d.out.projections, q025 = P[0] && lastPainted(P[0].series), q50 = P[3] && lastPainted(P[3].series), q975 = P[6] && lastPainted(P[6].series);
     var texts = d.out.overlays[0] ? d.out.overlays[0].definition.rows.map(function (r) { return r.cells[0] && r.cells[0].text; }).filter(Boolean) : [];
     var fork = first(texts, function (t) { return /^Fork: /.test(t); }), head = first(texts, function (t) { return /^IMPLIED · \d+-DAY/.test(t); });
+    var tag = first(texts, function (t) { return /^(Upside|Downside) tail|^Close to symmetric/.test(t); });
     var prev = d.close[d.close.length - 2], last = d.close[d.close.length - 1];
-    return { d: d, last: last, chg: last / prev - 1, near30: near30, iv: near30 && M.atmIv(near30), far: far, sh: sh, fork: fork && fork.replace(/^Fork: /, '').replace(/ · least likely.*/, ''), forkDay: head && +head.match(/(\d+)-DAY/)[1] };
+    return { d: d, last: last, chg: last / prev - 1, near30: near30, iv: near30 && M.atmIv(near30),
+      band: q50 && q025 && q975 ? { lo: q025.v, mid: q50.v, hi: q975.v, day: q50.bar, skew: Math.log(q975.v / q50.v) / Math.log(q50.v / q025.v) } : null,
+      tag: tag ? tag.replace(/ \(to \d+ days\)$/, '') : null,
+      fork: fork && fork.replace(/^Fork: /, '').replace(/ · least likely.*/, ''), forkDay: head && +head.match(/(\d+)-DAY/)[1] };
   }
   function row(s) {
-    var tag = s.sh ? skewTag(s.sh.skew) : null, kind = s.fork ? 'fork' : !tag ? 'flat' : /^Downside/.test(tag) ? 'down' : 'up';
+    var b = s.band, tag = s.tag && s.tag !== 'Close to symmetric' ? s.tag : null, kind = s.fork ? 'fork' : !tag ? 'flat' : /^Downside/.test(tag) ? 'down' : 'up';
     var shape = s.fork ? '<span class="tag-fork">Fork · ' + esc(s.fork) + ' <span class="muted small">(' + s.forkDay + 'd)</span></span>' : esc(tag || 'Close to symmetric');
     return '<tr data-k="' + kind + '" data-href="/symbol/?t=' + s.d.sym + '"><td><a href="/symbol/?t=' + s.d.sym + '">' + s.d.sym + '</a></td><td>' + esc(s.d.name) + '</td>' +
       '<td class="num">' + fmt(s.last) + ' <span class="' + (s.chg >= 0 ? 'up' : 'down') + '">' + (s.chg >= 0 ? '+' : '') + (s.chg * 100).toFixed(2) + '%</span></td>' +
       '<td class="num">' + (s.iv ? (s.iv * 100).toFixed(1) + '% <span class="muted small">' + s.near30.dte + 'd</span>' : '—') + '</td>' +
-      '<td class="num">' + (s.sh ? fmt(s.sh.q[3]) : '—') + '</td>' +
-      '<td class="num">' + (s.sh ? fmt(s.sh.q[0]) + ' – ' + fmt(s.sh.q[6]) : '—') + ' <span class="muted small">' + (s.far ? s.far.label : '') + '</span></td>' +
-      '<td class="num">' + (s.sh ? s.sh.skew.toFixed(2) : '—') + '</td><td>' + shape + '</td></tr>';
+      '<td class="num">' + (b ? fmt(b.mid) : '—') + '</td>' +
+      '<td class="num">' + (b ? fmt(b.lo) + ' – ' + fmt(b.hi) + ' <span class="muted small">' + b.day + 'd</span>' : '—') + '</td>' +
+      '<td class="num">' + (b ? b.skew.toFixed(2) : '—') + '</td><td>' + shape + '</td></tr>';
   }
   var tbody = document.querySelector('#mkt tbody'), filter = 'all', loaded = {};
   // One ticker at a time, yielding between them, so the page stays responsive.

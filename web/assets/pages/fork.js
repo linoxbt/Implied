@@ -21,7 +21,7 @@
     verdict.innerHTML = fork
       ? '<span class="chip fork" style="font-size:14px;padding:8px 12px;">Fork detected</span><b style="font-size:18px">' + esc(forkLabel(fork)) + '</b>'
       : '<span class="chip light" style="font-size:14px;padding:8px 12px">One outcome</span><b style="font-size:18px">' + (dg.peaks < 2 || dg.height < FORK_HEIGHT ? 'The market prices a single peak.' : 'Two peaks, but no Fork: ' + esc(dg.reason) + '.') + '</b>';
-    if (dg.peaks < 2) {
+    if (dg.peaks < 2 || dg.height < FORK_HEIGHT) { // a bump under 25% of the main peak is wing noise, not a peak
       document.getElementById('r1').textContent = 'one peak'; document.getElementById('r2').textContent = '—'; document.getElementById('r3').textContent = '—';
       meter('m1', 1); meter('m2', 0); meter('m3', 0);
     } else {

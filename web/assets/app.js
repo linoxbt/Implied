@@ -17,7 +17,9 @@
     setMenu(false);
     burger.addEventListener('click', function () { setMenu(!body.classList.contains('menu-open')); });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && body.classList.contains('menu-open')) { setMenu(false); burger.focus(); }
+      // Escape closes the topmost layer only: the search palette sits above the menu
+      var palette = document.getElementById('cmdk');
+      if (e.key === 'Escape' && body.classList.contains('menu-open') && (!palette || palette.hidden)) { setMenu(false); burger.focus(); }
       if (e.key === 'Tab' && body.classList.contains('menu-open')) {
         var f = [burger].concat([].slice.call(menu.querySelectorAll('a')));
         var i = f.indexOf(document.activeElement);
@@ -36,7 +38,12 @@
   });
   function closeMenus() { document.querySelectorAll('.dd.open').forEach(function (x) { x.classList.remove('open'); x.querySelector('.dd-btn').setAttribute('aria-expanded', 'false'); }); }
   document.addEventListener('click', closeMenus);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var inside = document.activeElement && document.activeElement.closest && document.activeElement.closest('.dd.open');
+    closeMenus();
+    if (inside) inside.querySelector('.dd-btn').focus(); // focus stays visible, not on a hidden link
+  });
   document.querySelectorAll('.dd').forEach(function (dd) { dd.addEventListener('focusout', function (e) { if (!dd.contains(e.relatedTarget)) closeMenus(); }); });
 
   // Keyboard hints: ⌘K on Apple devices, Ctrl K elsewhere
@@ -46,22 +53,29 @@
   // Search palette (⌘K or /)
   var cmdk = document.getElementById('cmdk'), q = document.getElementById('cmdk-q'), lastFocus = null;
   function items() { return [].slice.call(cmdk.querySelectorAll('.cmdk-list a')); }
+  if (cmdk) items().forEach(function (a, i) { a.id = 'cmdk-o' + i; });
+  // The highlighted result: a class for sight, aria-selected and the input's
+  // aria-activedescendant for screen readers (focus stays in the input).
+  function select(a) {
+    items().forEach(function (x) { x.classList.toggle('sel', x === a); x.setAttribute('aria-selected', x === a ? 'true' : 'false'); });
+    if (a) { q.setAttribute('aria-activedescendant', a.id); a.scrollIntoView({ block: 'nearest' }); } else q.removeAttribute('aria-activedescendant');
+  }
   function filter() {
     var v = q.value.trim().toLowerCase(), first = null;
-    items().forEach(function (a) { var on = !v || a.getAttribute('data-k').toLowerCase().indexOf(v) >= 0; a.hidden = !on; a.classList.remove('sel'); if (on && !first) first = a; });
-    if (first) first.classList.add('sel');
+    items().forEach(function (a) { var on = !v || a.getAttribute('data-k').toLowerCase().indexOf(v) >= 0; a.hidden = !on; if (on && !first) first = a; });
+    select(first);
     cmdk.querySelector('.cmdk-empty').hidden = !!first;
-    cmdk.querySelectorAll('.cmdk-h').forEach(function (h) {
-      var n = h.nextElementSibling, any = false;
-      while (n && !n.classList.contains('cmdk-h')) { if (!n.hidden) any = true; n = n.nextElementSibling; }
-      h.hidden = !any;
-    });
+    cmdk.querySelectorAll('.cmdk-list [role=group]').forEach(function (g) { g.hidden = !g.querySelector('a:not([hidden])'); });
   }
   function openSearch(prefill) {
     if (!cmdk) return;
     lastFocus = document.activeElement; cmdk.hidden = false; q.value = prefill || ''; filter(); q.focus();
   }
-  function closeSearch() { if (!cmdk || cmdk.hidden) return; cmdk.hidden = true; if (lastFocus) lastFocus.focus(); }
+  function closeSearch() {
+    if (!cmdk || cmdk.hidden) return;
+    cmdk.hidden = true;
+    if (lastFocus && lastFocus !== document.body && lastFocus.focus) lastFocus.focus(); else q.blur(); // never leave focus in the hidden dialog
+  }
   if (cmdk) {
     document.querySelectorAll('[data-search]').forEach(function (b) { b.addEventListener('click', function () { openSearch(''); }); });
     // Keep Tab inside the dialog while it is open
@@ -78,9 +92,8 @@
       var vis = items().filter(function (a) { return !a.hidden; }), i = vis.indexOf(cmdk.querySelector('.sel'));
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault(); if (!vis.length) return;
-        if (i >= 0) vis[i].classList.remove('sel');
         i = e.key === 'ArrowDown' ? (i + 1) % vis.length : (i - 1 + vis.length) % vis.length;
-        vis[i].classList.add('sel'); vis[i].scrollIntoView({ block: 'nearest' });
+        select(vis[i]);
       } else if (e.key === 'Enter' && i >= 0) { location.href = vis[i].getAttribute('href'); }
     });
     document.addEventListener('keydown', function (e) {
@@ -99,26 +112,46 @@
   var toast = document.querySelector('.toast'), timer;
   function say(msg) { if (!toast) return; toast.textContent = msg; toast.classList.add('show'); clearTimeout(timer); timer = setTimeout(function () { toast.classList.remove('show'); }, 2600); }
 
-  // Copy the script. The text is fetched ahead of the click, because Safari
-  // only allows a clipboard write inside the click itself. If the copy is
-  // blocked, the file downloads instead.
+  // Copy the script. The text is fetched ahead of the click when possible,
+  // because Safari only allows a clipboard write inside the click itself. If
+  // the copy is blocked, the file downloads instead.
   var scriptUrl = '/implied.js?v=' + (document.documentElement.getAttribute('data-v') || ''), scriptText = null;
   function fetchScript() { return fetch(scriptUrl).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); }).then(function (t) { scriptText = t; return t; }); }
   function download() { var a = document.createElement('a'); a.href = scriptUrl; a.download = 'implied.js'; document.body.appendChild(a); a.click(); a.remove(); }
   function copyScript() {
-    var write = scriptText != null && navigator.clipboard ? navigator.clipboard.writeText(scriptText) : fetchScript().then(function (t) { return navigator.clipboard.writeText(t); });
+    // Not fetched yet: a ClipboardItem holding the pending fetch keeps the
+    // write inside the click, which Safari requires.
+    var write = !navigator.clipboard ? Promise.reject(new Error('no clipboard'))
+      : scriptText != null ? navigator.clipboard.writeText(scriptText)
+      : global.ClipboardItem ? navigator.clipboard.write([new ClipboardItem({ 'text/plain': fetchScript().then(function (t) { return new Blob([t], { type: 'text/plain' }); }) })])
+      : fetchScript().then(function (t) { return navigator.clipboard.writeText(t); });
     write.then(function () { say('Copied implied.js. Paste it into the TrendSpider Custom JS editor.'); })
       .catch(function () { download(); say('Copying was blocked, so implied.js is downloading instead.'); });
   }
   var copyButtons = document.querySelectorAll('[data-copy]');
-  if (copyButtons.length) fetchScript().catch(function () { /* fetched again on click */ });
-  copyButtons.forEach(function (b) { b.addEventListener('click', copyScript); });
+  // Fetched when a copy button is pointed at or focused, not on every page load.
+  function prefetch() { if (scriptText == null) fetchScript().catch(function () { /* fetched again on click */ }); }
+  copyButtons.forEach(function (b) {
+    b.addEventListener('click', copyScript);
+    b.addEventListener('pointerenter', prefetch); b.addEventListener('focus', prefetch); b.addEventListener('touchstart', prefetch, { passive: true });
+  });
   document.querySelectorAll('[data-copy-text]').forEach(function (b) {
     b.addEventListener('click', function () {
       var src = document.querySelector(b.getAttribute('data-copy-text'));
       navigator.clipboard.writeText(src.textContent).then(function () { say('Copied.'); }, function () { say('Copy failed.'); });
     });
   });
+
+  // Wide tables scroll sideways on phones: make each scroll box reachable by
+  // keyboard and named for screen readers (tables are also drawn later).
+  function labelTables() {
+    document.querySelectorAll('.table-wrap:not([tabindex])').forEach(function (w) {
+      var h = w.closest('.ptable, .panel, section'), t = h && h.querySelector('h2, h3');
+      w.tabIndex = 0; w.setAttribute('role', 'region'); w.setAttribute('aria-label', t ? t.textContent.trim() : 'Table');
+    });
+  }
+  labelTables();
+  new MutationObserver(labelTables).observe(document.body, { childList: true, subtree: true });
 
   // Range sliders: fill + live value
   function paintRange(r) { var p = (r.value - r.min) / (r.max - r.min) * 100; r.style.setProperty('--p', p + '%'); }

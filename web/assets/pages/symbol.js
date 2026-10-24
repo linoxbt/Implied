@@ -6,6 +6,7 @@
   var symParam = params.get('t') || 'XERN', tab = params.get('tab') || 'charts', chart = params.get('chart') || 'prob';
   var D = null, sel = [], $ = function (id) { return document.getElementById(id); };
   var pct = function (x, d) { return (x * 100).toFixed(d == null ? 1 : d) + '%'; };
+  var has = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); }; // URL values are never prototype keys
 
   function setUrl() {
     var q = '?t=' + D.sym + (tab !== 'charts' ? '&tab=' + tab : '') + (tab === 'charts' && chart !== 'prob' ? '&chart=' + chart : '');
@@ -92,7 +93,7 @@
     lo.value = prob.lo; hi.value = prob.hi;
     function table() {
       var a = Math.min(prob.lo, prob.hi), b = Math.max(prob.lo, prob.hi);
-      $('pt').innerHTML = '<thead><tr><th></th><th>Below ' + fmt(a) + '</th><th>' + fmt(a) + ' – ' + fmt(b) + '</th><th>Above ' + fmt(b) + '</th></tr></thead><tbody>' +
+      $('pt').innerHTML = '<thead><tr><th><span class="sr">Distribution</span></th><th>Below ' + fmt(a) + '</th><th>' + fmt(a) + ' – ' + fmt(b) + '</th><th>Above ' + fmt(b) + '</th></tr></thead><tbody>' +
         series.map(function (s) { var pa = s.below(a), pb = s.below(b); return '<tr><td><b>' + esc(s.name) + '</b></td><td>' + pct(pa, 2) + '</td><td>' + pct(pb - pa, 2) + '</td><td>' + pct(1 - pb, 2) + '</td></tr>'; }).join('') + '</tbody>';
     }
     [lo, hi].forEach(function (inp) { inp.addEventListener('input', function () { var v = Number(inp.value); if (v > 0) { if (inp === lo) prob.lo = v; else prob.hi = v; table(); } }); });
@@ -173,21 +174,24 @@
     // A second bump under 25% of the main peak is noise in the wing, not a peak.
     var single = dg.peaks < 2 || dg.height == null || dg.height < FORK_HEIGHT;
     host.innerHTML = '<h2><span class="tk">' + esc(D.sym) + '</span> Fork Detection</h2>' +
-      '<p class="lead">The Fork is when the options market prices two separate outcomes, usually around earnings, and the middle becomes the least likely place to land. Implied checks every expiration with three rules and a data gate.</p>' +
+      '<p class="lead">The Fork is when the options market prices two separate outcomes, usually around earnings, and the middle becomes the least likely place to land. Implied checks every expiration with three shape rules, a data gate and a smoothing check.</p>' +
       '<div class="controls"><span class="ctl-select">Expiration Date</span>' + expButtons('fe', list, false) + '</div>' +
       '<div class="verdict">' + (f ? '<span class="chip fork big">Fork detected</span><b>' + esc(forkLabel(f)) + '</b>' : '<span class="chip big">One outcome</span><b>' + (single ? 'The market prices a single peak at this expiration.' : 'Two peaks, but no Fork: ' + esc(dg.reason) + '.') + '</b>') + '</div>' +
       '<div class="dark-card"><div class="chart-host" id="fc"></div></div>' +
       '<div class="ptable"><h3>The rules</h3><div class="table-wrap"><table class="data" id="ft"></table></div><p style="margin-top:12px"><a class="link" href="/fork/">Build your own two-outcome market in the Fork lab →</a></p></div>';
     bindExp('fe', false, drawFork);
     ImpliedCharts.density($('fc'), { d: e.ex.d, q: e.ex.shape.q, fork: f, F: e.ex.F, spot: D.S });
-    // The rules run in order and stop at the first that fails; later ones are "not reached".
-    var hOk = !single, vOk = hOk && dg.valley < FORK_VALLEY, gateRan = hOk && vOk;
+    // The checks run in the order the indicator applies them and stop at the
+    // first that fails; later ones are "not reached".
+    var two = dg.peaks >= 2, hOk = !single, vOk = hOk && dg.valley < FORK_VALLEY;
+    var gateOk = vOk && (!!f || dg.reason === 'does not survive harder smoothing');
     var res = function (ran, ok) { return !ran ? '<span class="muted">not reached</span>' : ok ? '<span class="pass">Pass</span>' : '<span class="fail">Fail</span>'; };
     var rows = [
-      ['Smaller peak at least 25% of the taller', '≥ 25%', dg.peaks < 2 ? 'one peak' : pct(dg.height), dg.peaks >= 2, hOk],
-      ['Peaks at least 3% of the forward apart', '≥ 3%', dg.peaks < 2 ? '—' : pct(dg.separation), dg.peaks >= 2, dg.peaks >= 2],
+      ['Two peaks at least 3% of the forward apart', '≥ 3%', two ? pct(dg.separation) : 'one peak', true, two],
+      ['Smaller peak at least 25% of the taller', '≥ 25%', two ? pct(dg.height) : '—', two, hOk],
       ['Valley below 70% of the smaller peak', '< 70%', hOk ? pct(dg.valley) : '—', hOk, vOk],
-      ['Data gate: peaks inside the quoted strikes, enough quotes between them, quotes cover most of the probability', 'all', gateRan ? esc(f ? 'passed' : dg.reason) : '—', gateRan, !!f],
+      ['Data gate: peaks inside the quoted strikes, enough quotes between them, quotes cover most of the probability', 'all', vOk ? (gateOk ? 'passed' : esc(dg.reason)) : '—', vOk, gateOk],
+      ['Still two peaks when the smile is smoothed ' + FORK_STABILITY + '× harder (not a ripple from noisy quotes)', 'yes', gateOk ? (f ? 'yes' : 'no') : '—', gateOk, !!f],
     ];
     $('ft').innerHTML = '<thead><tr><th class="l">Rule</th><th>Needs</th><th>This expiration</th><th>Result</th></tr></thead><tbody>' +
       rows.map(function (r) { return '<tr><td class="l">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td><td>' + res(r[3], r[4]) + '</td></tr>'; }).join('') + '</tbody>';
@@ -250,15 +254,16 @@
     setUrl();
   }
   function showChart(c) {
-    chart = CHARTS[c] ? c : 'prob';
+    chart = has(CHARTS, c) ? c : 'prob';
     document.querySelectorAll('[data-chart]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-chart') === chart); });
     CHARTS[chart](); setUrl();
   }
   var tabs = [].slice.call(document.querySelectorAll('[data-tab]'));
   tabs.forEach(function (b, i) {
     b.addEventListener('click', function () { showTab(b.getAttribute('data-tab')); });
-    b.addEventListener('keydown', function (ev) { // arrow keys move between tabs
-      var j = ev.key === 'ArrowRight' ? (i + 1) % tabs.length : ev.key === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length : -1;
+    b.addEventListener('keydown', function (ev) { // arrow keys, Home and End move between tabs
+      var j = { ArrowRight: (i + 1) % tabs.length, ArrowLeft: (i - 1 + tabs.length) % tabs.length, Home: 0, End: tabs.length - 1 }[ev.key];
+      if (j == null) j = -1;
       if (j >= 0) { ev.preventDefault(); tabs[j].focus(); showTab(tabs[j].getAttribute('data-tab')); }
     });
   });
@@ -266,7 +271,7 @@
   document.querySelectorAll('#ov-ranges [data-r]').forEach(function (b) { b.addEventListener('click', function () { ovRange = +b.getAttribute('data-r'); document.querySelectorAll('#ov-ranges [data-r]').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); if (D) drawOverview(); }); });
 
   // ---------- Load ----------
-  M.load(symParam).then(function (d) {
+  M.load(symParam).then(async function (d) {
     D = d;
     tabs.forEach(function (b) { b.disabled = false; });
     document.title = d.sym + ' · Implied';
@@ -278,8 +283,11 @@
     $('s-px').innerHTML = last.toFixed(2) + '<small>USD</small>';
     $('s-chg').textContent = (ch >= 0 ? '+' : '') + ch.toFixed(2) + ' (' + (ch >= 0 ? '+' : '') + pct(ch / prev, 2) + ')'; $('s-chg').className = 'chg ' + (ch >= 0 ? 'up' : 'down');
     var lt = d.time[d.time.length - 1]; $('s-asof').textContent = 'Last candle: ' + M.ymd(lt > 1e12 ? lt / 1000 : lt) + ' · options modelled in your browser';
+    // Fit the expirations one at a time, yielding between them, so the page
+    // stays responsive while the model runs (the overview chart needs none).
+    for (var i = 0; i < d.expiries.length; i++) if (d.expiries[i].dte <= 120) { void d.expiries[i].ex; await new Promise(function (res) { setTimeout(res, 0); }); }
     if (!okList().length) { $('chart-pane').innerHTML = '<div class="notice warn"><i></i><span>No expiration in this chain could be modelled (too few liquid strikes).</span></div>'; return; }
-    chart = CHARTS[chart] ? chart : 'prob';
+    chart = has(CHARTS, chart) ? chart : 'prob';
     document.querySelectorAll('[data-chart]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-chart') === chart); });
     showTab(['overview', 'charts', 'chain', 'ts'].indexOf(tab) >= 0 ? tab : 'charts');
   }).catch(function (e) {
