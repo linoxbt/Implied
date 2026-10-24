@@ -27,7 +27,7 @@ Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider'
 | Schedule `timestamp` is in seconds or milliseconds, and candle `time` likewise | Both units are accepted; a different field name would fall back to `dte` |
 | A failed options request rejects (or returns `{ error }`) instead of hanging | Both are caught and shown as the "No options data" message |
 | `close` is the real close on Heikin-Ashi and other synthetic chart types | Within 10% of the chain the cloud uses the chain's own prices, so only its starting point would be off; check on a Heikin-Ashi chart |
-| Bid and ask are returned outside market hours | If not, the chart shows "Not enough liquid strikes" until the open |
+| Bid and ask are returned outside market hours | If not, the chart shows "No live bid/ask quotes … (outside market hours?)" until the open |
 | On a multi-timeframe (MTFA) layout, `current.resolution` is the chart's own timeframe | The script would show "Daily timeframe only" on a Daily pane in an intraday layout |
 
 ## Still to check in the editor

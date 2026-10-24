@@ -66,14 +66,14 @@ For each expiry, Implied:
 | u held at its first-expiry value before that expiry | u interpolated from 0 | Starting u at 0 and also scaling by √t makes the cloud grow like t^1.5, far too narrow in the first days (covered by a test in `test/project.test.js`). |
 | Non-overlapping bands at 7% / 16% / 30% | Stacked fills | The same look, without painting over the core three times. |
 | Text in one summary panel | A Fork label next to each expiry and a skew tag at the farthest one | Line names must stay fixed, and one panel in a fixed corner reads faster than labels scattered across the cloud. The panel also gives the median, 95% range and the chance of a 10% move. |
-| Fork ticks at most once per run of consecutive expiries | A tick at every forked expiry | On tickers with an expiry every weekday, ticks at each one merge into long lines. |
+| Fork ticks separated by a gap | A tick at every forked expiry | On tickers with an expiry every weekday, a tick at each one merges into a long line; a tick that would touch the previous one is left out, so a run of daily Forks shows as short dashes every few bars. |
 
 ## Tested on real chains
 
 On 2026-10-23 closing quotes (Cboe delayed data) for 22 tickers (SPY, QQQ, IWM, AAPL, MSFT, META, AMZN, GOOGL, TSLA, NVDA, AMD, NFLX, COIN, MSTR, GME, PLTR, SOFI, F, INTC, KO, XOM, BKNG), cut to TrendSpider's 40 strikes per side:
 
 - Every chain drew a cloud, with no crashes, in 20 to 160 ms.
-- **Against the market's own prices.** The probability of finishing below a strike, which a put spread prices with no model at all, matched Implied's to within about half a point of probability on most strikes (NVDA 28-day: 0.2; META 28-day: 0.5). The largest gaps, 1 to 2 points, were at the money, where the put spread itself is widest (META 7-day: 1.2; AAPL 28-day: 1.3; SPY 7-day: 1.7; SPY 56-day: 1.9). In SPY's extrapolated tails the gap was up to 1 point.
+- **Against the market's own prices.** The probability of finishing below a strike, which a vertical spread between its neighbouring strikes prices with no model at all, matched Implied's to within half a point on most strikes. The largest gaps were all at the money, where the market's own spread estimates jump around: 0.2 to 1.2 points for NVDA, META, AAPL and SPY out to 28 days, and up to 2 points at 56 days (SPY 1.9, NVDA 2.0). The worst, TSLA 28-day (3.5 points), is a step in the market's numbers: its probability rises 2.7 points from $372.5 to $380, then 14 points to $390, which no smooth distribution follows. Reproduce with `node tools/model-vs-market.js <saved chain> 7 28 56`.
 - **40 strikes per side.** For single stocks it covers every listed strike that matters, so results equal the full chain. For SPY and QQQ ($1 strikes) it covers about ±5%; the median and upside are unchanged, and the extrapolated lower tail runs 1 to 1.5 points of price wider at 28 to 56 days.
 - **Earnings.** MSFT, AMZN and GOOGL reported inside the 7-day expiry (implied volatility 48 to 71%, against 17 to 25% before). Their market densities (butterfly prices) are wide and flat-topped, not split in two, and Implied correctly called no Fork. Large-cap earnings are usually priced as a wide range; the Fork appears when the market prices a true either/or outcome. A wider scan of 69 liquid tickers on the same close (228 expiries within 21 days) found no two-outcome market: 175 had one peak, 52 a second bump too small or too shallow to count, and 1 a borderline case that the smoothing check rejects.
 
@@ -82,7 +82,7 @@ Real quotes are licensed data and are not in this repository. To repeat the chec
 ## Known limits
 
 - **40 strikes per side.** That is TrendSpider's maximum per request. With fine strike spacing, 80 strikes cover a narrow band: about ±5% for a $580 index ETF with $1 strikes, about ±10% for a $1,000 stock with $2.50 strikes. A Fork wider than that is not called, because the data gate sees too little of the distribution quoted, and the outer bands come from the fitted smile (the panel says so). Coarser listings (e.g. $5 strikes on a $190 stock) cover ±20% or more and are fine.
-- **Bid and ask only.** The model needs live two-sided quotes. Outside market hours, if TrendSpider returns no bids, the chart shows "Not enough liquid strikes" instead of a cloud.
+- **Bid and ask only.** The model needs live two-sided quotes. Outside market hours, if TrendSpider returns no bids, the chart shows "No live bid/ask quotes for X options right now (outside market hours?)" instead of a cloud.
 - **Future bar units and chart types.** Whether TrendSpider's future bars are calendar or trading days, and what `close` holds on Heikin-Ashi charts, can only be confirmed in TrendSpider ([docs/verify-in-trendspider.md](docs/verify-in-trendspider.md)).
 - **Risk-neutral.** The distribution is the price of each outcome, including risk premia, not a forecast of real-world odds.
 
@@ -105,6 +105,8 @@ Real quotes are licensed data and are not in this repository. To repeat the chec
 | No price history on the chart | "Implied needs price history on the chart." |
 | An options request fails | The "No options data for X…" message, with the request's error in brackets |
 | No expiry within the 100 bars the cloud can draw | "Options data for X did not include any expiration in the next 99 days." |
+| The chain has no quotes for the expirations in the schedule | "Options data for X did not return quotes for the expirations in its schedule." |
+| No bid anywhere in the chain (market closed, empty feed) | "No live bid/ask quotes for X options right now (outside market hours?). Implied needs two-sided quotes." |
 | Every expiry too thin | "Not enough liquid strikes on X to build a distribution." |
 | Some expiries thin or broken | Those expiries are skipped; the rest still draw |
 
@@ -121,6 +123,7 @@ npm run site      # build the website into public/ (deployed to Netlify)
 npm run smoke     # open every built page in Chromium under the production CSP
 npm run chain -- SPY                      # save a real chain (Cboe delayed quotes) to chains/, git-ignored
 node tools/replay.js chains/<file>.json   # run a saved chain through the script
+node tools/model-vs-market.js chains/<file>.json 7 28   # Implied's probabilities vs the market's own spreads
 ```
 
 | Path | What it is |

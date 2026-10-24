@@ -29,6 +29,7 @@ const NAV = [
 ];
 const { TICKERS, GLOBALS } = require('../web/assets/engine.js');
 let VERSION = '';
+let FONT_V = {}; // font file -> content hash, so fonts can be cached for good like every other asset
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -70,7 +71,7 @@ ${meta.file === '404.html' ? '<meta name="robots" content="noindex">' : `<link r
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" href="/assets/favicon.svg?v=${version}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/assets/icon-180.png?v=${version}">
-<link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/inter-latin.woff2?v=${FONT_V['inter-latin.woff2']}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/site.css?v=${version}">
 </head>`;
 }
@@ -173,6 +174,13 @@ function main() {
   fs.rmSync(out, { recursive: true, force: true });
   copyDir(path.join(web, 'assets'), path.join(out, 'assets'));
   fs.copyFileSync(path.join(web, 'favicon.ico'), path.join(out, 'favicon.ico')); // browsers ask for it by name
+  // Fonts are referenced from site.css by plain URL: stamp each with its own hash.
+  const fontDir = path.join(out, 'assets/fonts');
+  for (const f of fs.readdirSync(fontDir).filter(f => f.endsWith('.woff2'))) {
+    FONT_V[f] = require('crypto').createHash('sha1').update(fs.readFileSync(path.join(fontDir, f))).digest('hex').slice(0, 10);
+  }
+  const cssFile = path.join(out, 'assets/site.css');
+  fs.writeFileSync(cssFile, fs.readFileSync(cssFile, 'utf8').replace(/url\(fonts\/([\w.-]+\.woff2)\)/g, (m, f) => `url(fonts/${f}?v=${FONT_V[f]})`));
   const script = fs.readFileSync(path.join(root, 'dist/implied.js'), 'utf8');
   fs.writeFileSync(path.join(out, 'implied.js'), script);
   fs.writeFileSync(path.join(out, 'assets/core.js'), coreForBrowser());

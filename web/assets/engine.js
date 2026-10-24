@@ -2,8 +2,9 @@
 // 1. A stand-in for TrendSpider's script runtime: runs the real, unmodified
 //    implied.js and records what it paints, checking the API rules the
 //    script relies on (40 strikes per side, valid styles, named and unique
-//    lines, 100-value projections, serializable overlays). That names stay
-//    the same from run to run is checked by a test across scenarios. It is a model of
+//    lines), trims projections to 100 values as the platform does, and keeps
+//    overlays as JSON copies. That names stay the same from run to run is
+//    checked by a test across scenarios. It is a model of
 //    TrendSpider's runtime, not the runtime itself: the assumptions still to
 //    confirm live are listed in docs/verify-in-trendspider.md.
 // 2. Synthetic option chains in TrendSpider's response shape (real-format

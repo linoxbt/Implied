@@ -132,14 +132,18 @@
   new MutationObserver(labelTables).observe(document.body, { childList: true, subtree: true });
 
   // Range sliders: fill + live value
-  // The formatted value shown beside a slider (<output for=id>) is also what
-  // screen readers announce, via aria-valuetext. It is read a tick later,
-  // after the page's own handler has written it.
-  function paintRange(r) {
-    var p = (r.value - r.min) / (r.max - r.min) * 100; r.style.setProperty('--p', p + '%');
-    setTimeout(function () { var o = r.id && document.querySelector('output[for="' + r.id + '"]'); if (o && o.textContent) r.setAttribute('aria-valuetext', o.textContent); }, 0);
-  }
+  function paintRange(r) { var p = (r.value - r.min) / (r.max - r.min) * 100; r.style.setProperty('--p', p + '%'); }
   document.querySelectorAll('input[type=range]').forEach(function (r) { paintRange(r); r.addEventListener('input', function () { paintRange(r); }); });
+  // The formatted value shown beside a slider (<output for=id>) is also what
+  // screen readers announce (aria-valuetext), kept in step whenever a page
+  // rewrites it, however late.
+  document.querySelectorAll('output[for]').forEach(function (o) {
+    var r = document.getElementById(o.getAttribute('for'));
+    if (!r) return;
+    var sync = function () { if (o.textContent) r.setAttribute('aria-valuetext', o.textContent); };
+    new MutationObserver(sync).observe(o, { childList: true, characterData: true, subtree: true });
+    sync();
+  });
 
   // New York clock, regular session (holidays not included)
   var clock = document.getElementById('clock'), mk = document.getElementById('mk');

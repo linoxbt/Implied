@@ -391,4 +391,6 @@ body:not(.home) main{padding-bottom:72px} /* the footer is on the landing page o
 .script-steps li{margin-bottom:8px}
 
 /* Phones: 16px text in form fields, so iOS does not zoom in on focus */
-@media (max-width:600px){input[type=text],input[type=number],input:not([type]),select,textarea{font-size:16px}}
+@media (max-width:600px){input[type=text],input[type=number],input:not([type]),select,textarea,.ctl-select select{font-size:16px}}
+/* Very narrow phones: the logo mark alone, so the header actions never cover the name */
+@media (max-width:360px){.top .brand b{display:none}}
