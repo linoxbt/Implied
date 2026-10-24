@@ -174,7 +174,7 @@
     // A second bump under 25% of the main peak is noise in the wing, not a peak.
     var single = dg.peaks < 2 || dg.height == null || dg.height < FORK_HEIGHT;
     host.innerHTML = '<h2><span class="tk">' + esc(D.sym) + '</span> Fork Detection</h2>' +
-      '<p class="lead">The Fork is when the options market prices two separate outcomes, usually around earnings, and the middle becomes the least likely place to land. Implied checks every expiration with three shape rules, a data gate and a smoothing check.</p>' +
+      '<p class="lead">The Fork is when the options market prices two separate outcomes, as before a binary event, and the middle becomes the least likely place to land. Implied checks every expiration with three shape rules, a data gate and a smoothing check.</p>' +
       '<div class="controls"><span class="ctl-select">Expiration Date</span>' + expButtons('fe', list, false) + '</div>' +
       '<div class="verdict">' + (f ? '<span class="chip fork big">Fork detected</span><b>' + esc(forkLabel(f)) + '</b>' : '<span class="chip big">One outcome</span><b>' + (single ? 'The market prices a single peak at this expiration.' : 'Two peaks, but no Fork: ' + esc(dg.reason) + '.') + '</b>') + '</div>' +
       '<div class="dark-card"><div class="chart-host" id="fc"></div></div>' +

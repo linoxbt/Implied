@@ -6,11 +6,11 @@
 
 Implied is a free, open-source [TrendSpider](https://trendspider.com) custom indicator. It reads the live options chain, recovers the probability distribution the market is pricing for each expiry, and paints it into the future on the price chart as a cloud. Built for the 2026 TrendSpider Hackathon, category *Most Unique Options Indicator* (#TSBuild26).
 
-| SPY: downside tail wider than upside | Earnings stock: the Fork |
+| SPY: downside tail wider than upside | Two-outcome market: the Fork |
 | --- | --- |
 | ![SPY preview](docs/img/SPY-dark.svg) | ![Earnings preview](docs/img/EARN-dark.svg) |
 
-*Previews rendered from the script's own paint calls on synthetic chains (`npm run preview`).*
+*Previews rendered from the script's own paint calls on synthetic chains (`npm run preview`); the Fork preview is a simulated two-outcome market.*
 
 **Try it live: [implied.netlify.app](https://implied.netlify.app).** The home, Explore, Lab, Analyze, How-it-works and Validation pages run the real `dist/implied.js` in your browser against a stand-in for TrendSpider's runtime; the Fork page runs the same model code (`src/core.js`) directly. All of it on simulated chains, not market data.
 
@@ -40,7 +40,7 @@ Implied is a free, open-source [TrendSpider](https://trendspider.com) custom ind
 | Faint outer bands | 2.5th–97.5th percentile: the 95% range |
 | Dotted line | The median outcome |
 | One side wider than the other | The market is paying more for that tail. The summary panel says by how much, e.g. "Downside tail 1.4× upside" |
-| Orange ticks (the Fork) | The market prices two separate outcomes, usually around earnings. The grey tick between them is the least likely zone. The summary panel reads e.g. "Fork: $182.00 / $201.00 · least likely $190.00" |
+| Orange ticks (the Fork) | The market prices two separate outcomes, as before a binary event (an FDA decision, a deal vote). Rare by design: most earnings are priced as one wide range, with no Fork. The grey tick between them is the least likely zone. The summary panel reads e.g. "Fork: $182.00 / $201.00 · least likely $190.00" |
 
 A summary panel (top left) shows a small chart of the distribution at the expiry that matters most, its median and 95% range, the skew in words, and the Fork prices. The median line's price shows on hover; the summary panel gives the 95% range in dollars.
 

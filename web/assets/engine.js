@@ -233,7 +233,7 @@
 
   // The website's simulated tickers (clearly not market data): symbol -> preset.
   var TICKERS = [
-    { sym: 'XERN', name: 'Simulated earnings-week stock', preset: 'earnings', kind: 'Stock' },
+    { sym: 'XERN', name: 'Simulated two-outcome event stock', preset: 'earnings', kind: 'Stock' },
     { sym: 'XIDX', name: 'Simulated index ETF', preset: 'index', kind: 'ETF' },
     { sym: 'XHIV', name: 'Simulated high-IV stock', preset: 'meme', kind: 'Stock' },
     { sym: 'XBEL', name: 'Simulated flat-smile stock', preset: 'bell', kind: 'Stock' },

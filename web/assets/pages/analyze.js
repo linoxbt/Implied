@@ -82,7 +82,7 @@
     var d = Implied.synth(Object.assign({ seed: 11 }, Implied.PRESETS.earnings)), c = Implied.candles(190, 260, 5);
     var text = JSON.stringify({ ticker: 'EXAMPLE', schedule: d.schedule, chain: d.chain, close: c.close, time: c.time });
     paste.value = text;
-    handle(text, 'simulated earnings-week chain');
+    handle(text, 'simulated two-outcome event chain');
   });
   document.getElementById('file').addEventListener('change', function (e) { readFile(e.target.files[0]); e.target.value = ''; });
   var drop = document.getElementById('drop');
