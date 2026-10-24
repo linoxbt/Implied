@@ -5,7 +5,7 @@ Each item is a disqualification or scoring risk, so each is a release gate. Sour
 ## Before anything else
 
 - [ ] Registered on the official form. Registration officially closed on Sept 16, so confirm late acceptance in the hackathon Discord.
-- [ ] Deadline confirmed in Discord. The hackathon page says October 26; the PDF and form still say October 5. Assume 11:59pm ET on October 26 (4:59am October 27 in Lagos) unless told otherwise.
+- [ ] Deadline time confirmed (ask adam@trendspider.net or the Discord). The form says October 26; assume 11:59pm ET on October 26 (4:59am October 27 in Lagos) unless told otherwise, and aim to submit by midday ET on October 26.
 
 ## Build
 
@@ -31,10 +31,15 @@ Each item is a disqualification or scoring risk, so each is a release gate. Sour
 
 ## Publish and submit
 
-- [ ] Published to the TrendSpider Store as a **new** script: public, free to apply, source open.
+- [ ] Published to the TrendSpider Store as a **new** script: public, free to apply, **source code visible**.
+- [ ] Exact Store title recorded (expected: `Implied`) for the submission form.
 - [ ] Store description pasted from [store-listing.md](store-listing.md), including `#TSBuild26`; screenshots attached.
 - [ ] Plotted on the underlying's price chart (category requirement).
-- [ ] Official submission form completed (the link is in the builder-pack email), category **Most Unique Options Indicator** only.
+- [ ] Official submission form completed: email of the TrendSpider account that published it, the exact Store title, category **Most Unique Options Indicator**, the short description below, and the three confirmations. A second category needs a second form; enter one only if the organisers confirm the same script may be entered twice.
+
+  Short description for the form:
+
+  > Implied paints the options market's full probability distribution into the future on your chart. It reads every liquid strike in the live chain, recovers the distribution the market is pricing (Breeden-Litzenberger) and draws it as 50/80/95% bands around a median, out to each modelled expiry. Unlike expected-move cones, it shows the real shape of the bet: which tail the market is paying for ("Downside tail 1.4× upside"), the chance of a 10% move either way, and, when the market prices two separate outcomes, the Fork and the least likely zone between them. Free and open source. #TSBuild26
 - [ ] Submitted before the deadline.
 - [ ] Demo clip posted on X tagging @TrendSpider.
 
