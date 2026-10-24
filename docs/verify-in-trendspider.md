@@ -1,6 +1,6 @@
 # Verify in TrendSpider (about 20 minutes)
 
-Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider's own scripting reference ([platform-docs.trendspider.com/scripting/docs](https://platform-docs.trendspider.com/scripting/docs/)). The tests run the built script against a stand-in that enforces the documented rules (40 strikes per side, valid line styles, the 100-value projection limit, fixed line names, the same paint calls every run).
+Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider's own scripting reference ([platform-docs.trendspider.com/scripting/docs](https://platform-docs.trendspider.com/scripting/docs/)). The tests run the built script against a stand-in (`web/assets/engine.js`) that checks the documented rules the script relies on (40 strikes per side, valid line styles, the 100-value projection limit, fixed line names, the same paint calls every run). The stand-in is a model of TrendSpider's runtime, not the runtime itself, so the assumptions below are only confirmed by a live run.
 
 ## Settled by the docs
 
@@ -17,6 +17,17 @@ Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider'
 | Text on the chart | `paint_overlay()` draws a styled table, with Chart.js charts, using theme colors | A top-left summary panel: mini distribution chart, median and 95% range, skew sentence, Fork prices |
 | Request limits | Up to 6 data requests besides price history | Uses 2, sent in parallel |
 
+## Assumptions the stand-in makes (confirm live)
+
+| Assumption | If it is wrong |
+| --- | --- |
+| `fill()` between two `paint_projection()` lines shades the gap between them | The bands draw as lines only; the cloud still reads, but switch the fills to `arearange` projections |
+| A failing `assert` after every paint call still shows its message | Every paint call runs first (with empty series when there is nothing to draw), then `assert` reports the problem; the same message is also in the summary panel, so it shows either way |
+| `underlyingSymbolQuote.lastPrice` may be stale after hours | Already handled: the cloud starts from the chain's own parity spot, not the quote |
+| Schedule `timestamp` is in seconds or milliseconds, and candle `time` likewise | Both units are accepted; a different field name would fall back to `dte` |
+| A failed options request rejects (or returns `{ error }`) instead of hanging | Both are caught and shown as the "No options data" message |
+| On a multi-timeframe (MTFA) layout, `current.resolution` is the chart's own timeframe | The script would show "Daily timeframe only" on a Daily pane in an intraday layout |
+
 ## Still to check in the editor
 
 1. **Projection bar units.** The docs do not say whether future bars are calendar days or trading days. Implied follows TrendSpider's own Expected Move from Options script (calendar days). On a Friday, check that the cloud's end lines up with the last expiry date. If the cloud runs past it, set `PROJECTION_DAYS = 'trading'` in `src/indicator.js`, run `npm test`, and paste the new `dist/implied.js`.
@@ -27,4 +38,4 @@ Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider'
    console.log(JSON.stringify({ ticker: current.ticker, schedule, chain, close: close.slice(-260), time: time.slice(-260) }));
    ```
 
-   Then run `node tools/replay.js chains/SPY-<date>.json` (or drop it on the site's Analyze page). Every file in `chains/` is also replayed by `npm test`. Save one earnings-week stock too, and remove the line before publishing.
+   Then run `node tools/replay.js chains/SPY-<date>.json` (or drop it on the site's Analyze page). Every file in `chains/` is also replayed by `npm test`. Save one earnings-week stock too, and remove the line before publishing. Real chains are OPRA-licensed data: `chains/` is git-ignored apart from the synthetic examples, so they stay on your machine.

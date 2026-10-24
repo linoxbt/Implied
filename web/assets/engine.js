@@ -1,8 +1,10 @@
 // Implied — engine shared by the website, the test suite and tools/replay.js.
 // 1. A stand-in for TrendSpider's script runtime: runs the real, unmodified
-//    implied.js and records what it paints, enforcing the documented rules
-//    (40 strikes per side, valid styles, fixed line names, 100-value
-//    projections, serializable overlays).
+//    implied.js and records what it paints, checking the API rules the
+//    script relies on (40 strikes per side, valid styles, fixed line names,
+//    100-value projections, serializable overlays). It is a model of
+//    TrendSpider's runtime, not the runtime itself: the assumptions still to
+//    confirm live are listed in docs/verify-in-trendspider.md.
 // 2. Synthetic option chains in TrendSpider's response shape (real-format
 //    expiry codes, optional gaps and one-sided strikes), priced from a known
 //    distribution.

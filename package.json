@@ -2,7 +2,24 @@
   "name": "implied",
   "version": "1.0.0",
   "description": "TrendSpider indicator: the options market's full implied price distribution, projected on the chart.",
+  "keywords": [
+    "trendspider",
+    "options",
+    "implied-distribution",
+    "risk-neutral",
+    "breeden-litzenberger",
+    "indicator"
+  ],
+  "homepage": "https://implied.netlify.app",
+  "bugs": {
+    "url": "https://github.com/linoxbt/Implied/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/linoxbt/Implied.git"
+  },
   "license": "Apache-2.0",
+  "author": "Lino (https://github.com/linoxbt)",
   "private": true,
   "scripts": {
     "build": "node tools/build.js",
@@ -10,9 +27,10 @@
     "check": "node tools/build.js --check && node tools/test.js",
     "preview": "node tools/build.js && node tools/preview.js",
     "site": "node tools/build.js && node tools/site.js",
-    "stress": "node tools/stress.js"
+    "stress": "node tools/stress.js",
+    "smoke": "node tools/smoke.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }

@@ -1,6 +1,6 @@
 # Release checklist
 
-Each item is a disqualification or scoring risk, so each is a release gate. Sources: the hackathon page, the judging PDF and the registration form, linked from the [build spec](https://claude.ai/artifact/55ZafVmcfj2QnxCYQAV5fB).
+Each item is a disqualification or scoring risk, so each is a release gate. Sources: the hackathon page, the judging PDF and the registration form.
 
 ## Before anything else
 
@@ -11,7 +11,8 @@ Each item is a disqualification or scoring risk, so each is a release gate. Sour
 
 - [ ] Every item in [verify-in-trendspider.md](verify-in-trendspider.md) checked; code changed where needed.
 - [ ] `npm test` passes and `npm run check` says dist is up to date.
-- [ ] Real chains saved in `chains/` for SPY and one earnings-week stock; both replay cleanly (`node tools/replay.js`).
+- [ ] Real chains saved in `chains/` for SPY and one earnings-week stock; both replay cleanly (`node tools/replay.js`). They stay on your machine: OPRA data is licensed and `chains/` is git-ignored apart from the synthetic examples.
+- [ ] Risk-free rate default still close to the 3-month T-bill yield (4.0% at release); update the default in `src/indicator.js` and the docs if it has moved by more than half a point.
 - [ ] The temporary `console.log` dump line removed.
 
 ## Live checks on TrendSpider

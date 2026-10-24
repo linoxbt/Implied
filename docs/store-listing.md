@@ -21,10 +21,9 @@ HOW TO READ IT
 - Dense core: the middle 50% of outcomes (25th-75th percentile)
 - Lighter bands: the 80% and 95% ranges
 - Dotted line: the median outcome
-- One side wider than the other: the market is paying more for that tail. The summary panel says by how much, e.g. "Downside tail 1.4x upside"
+- One side wider than the other: the market is paying more for that tail. The summary panel says by how much (measured in percentage moves), e.g. "Downside tail 1.4x upside"
 - Orange Fork: the market is pricing two separate outcomes, common before earnings. The grey mark between them is the least likely zone. The summary panel gives the prices, e.g. "Fork: $182.00 / $201.00 · least likely $190.00"
-- Summary panel (top left): a small chart of the distribution, its median and 95% range
-The summary panel gives the median and 95% range in dollars.
+- Summary panel (top left): a small chart of the distribution, its median and 95% range in dollars, and the chance of a 10% move either way
 
 HOW IT WORKS
 For each expiry, Implied cleans the out-of-the-money quotes, finds the forward price from put-call parity, and solves implied volatility. It then fits a smooth volatility smile, weighting each quote by its bid-ask spread and letting the data choose the smoothing. Finally it takes the second derivative of the rebuilt call prices with respect to strike (Breeden-Litzenberger, 1978). That gives the risk-neutral density, which is turned into percentile bands and checked for two peaks. Between expiries the cloud widens with the square root of time.

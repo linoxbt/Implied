@@ -4,3 +4,7 @@ preview/
 .DS_Store
 public/
 .netlify
+
+# Real OPRA chains are licensed data: keep them local
+chains/*
+!chains/example-*.json

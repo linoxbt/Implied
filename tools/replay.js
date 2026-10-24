@@ -23,23 +23,26 @@ async function main() {
   const time = data.time || close.map((_, i) => Math.floor(Date.now() / 1000) - (close.length - 1 - i) * 86400);
   const expirations = Number(process.argv[3] || 4);
   const chain = engine.limitStrikes(data.chain, 40, close[close.length - 1]);
+  const settings = { rate: 0.04, maxSpread: 0.5, minStrikes: 8 }; // the script's defaults
 
   console.log(`${data.ticker || 'ticker'}  spot ${S}  expirations in schedule: ${(data.schedule || []).length}\n`);
-  const byKey = {};
-  for (const k of Object.keys(chain?.resultByExpiration || {})) byKey[core.expiryKey(k)] = chain.resultByExpiration[k];
-  const rows = (data.schedule || []).filter(e => e.expiration?.dte >= 1 && e.expiration.dte < 100)
-    .sort((a, b) => a.expiration.dte - b.expiration.dte);
-  for (const e of rows) {
-    const byStrike = byKey[core.expiryKey(e.expiration.code)];
-    const T = e.expiration.dte / 365;
-    const f = byStrike ? core.fitExpiry(byStrike, S, T, 0.04, 0.5, 8) : { ok: false, reason: 'not in the chain', pts: [] };
+  // The same selection the script makes, so the table marks what it draws.
+  const { candidates, shapes } = core.selectExpiries(Object.assign({
+    schedule: data.schedule, resultByExpiration: chain?.resultByExpiration, spot: S > 0 ? S : close[close.length - 1],
+    lastTime: Number(time[time.length - 1]), count: expirations, maxBars: 100, mode: 'calendar',
+  }, settings));
+  const drawn = new Set(shapes.map(s => s.key));
+  for (const c of candidates) {
+    const dte = Number(c.x.dte), T = dte / 365;
+    const f = core.fitExpiry(c.byStrike, S, T, settings.rate, settings.maxSpread, settings.minStrikes);
     let line = `skipped: ${f.reason} (${f.pts.length} usable strikes)`;
     if (f.ok) {
       const shape = core.describeShape(f.d, f.F, f.pts.map(p => p.K));
       line = `F ${f.F.toFixed(2)}  strikes ${f.pts.length}  2.5/50/97.5%: ${shape.q[0].toFixed(2)} / ${shape.q[3].toFixed(2)} / ${shape.q[6].toFixed(2)}  skew ${shape.skew.toFixed(2)}  ${shape.fork ? core.forkLabel(shape.fork) : 'no Fork'}`;
     }
-    console.log(`  ${String(e.expiration.dte).padStart(3)} dte  ${e.expiration.code}:  ${line}`);
+    console.log(`${drawn.has(c.key) ? '* ' : '  '}${String(dte).padStart(3)} dte  ${c.x.code}:  ${line}`);
   }
+  console.log('\n* = drawn by the script');
 
   const out = await engine.runCode(fs.readFileSync(path.join(__dirname, '../dist/implied.js'), 'utf8'), {
     ticker: data.ticker || 'TICKER', schedule: data.schedule, chain: data.chain, close, time,
@@ -47,6 +50,7 @@ async function main() {
   });
   console.log('\nScript result: ' + (out.error ? 'message "' + out.error + '"' : 'painted ' + out.projections.length + ' series, ' + out.fills.length + ' fills in ' + out.ms.toFixed(0) + ' ms'));
   for (const o of out.overlays) for (const row of o.definition.rows) for (const c of row.cells) if (c.text) console.log('  panel: ' + c.text);
+  if (out.crash) process.exitCode = 1; // a script error, not an on-chart message
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

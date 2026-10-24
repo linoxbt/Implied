@@ -677,7 +677,7 @@ function forkLabel(f) {
   return 'Fork: ' + formatPrice(f.low) + ' / ' + formatPrice(f.high) + ' · least likely ' + formatPrice(f.valley);
 }
 
-// Skew ratio = upside tail / downside tail (97.5-50 vs 50-2.5).
+// Skew ratio = upside tail / downside tail in log space: ln(q97.5/q50) / ln(q50/q2.5).
 function skewTag(ratio) {
   if (!Number.isFinite(ratio) || ratio <= 0) return null;
   if (ratio > 1.15) return 'Upside tail ' + ratio.toFixed(1) + '× downside';
