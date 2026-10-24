@@ -55,11 +55,6 @@
     var blob = new Blob([JSON.stringify(last)], { type: 'application/json' }), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = 'implied-lab-chain.json'; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
-  document.getElementById('analyze').addEventListener('click', function () {
-    if (!last) return;
-    try { sessionStorage.setItem('implied:chain', JSON.stringify(last)); } catch (e) { ImpliedUI.say('Could not hand the chain over; download it instead.'); return; }
-    location.href = '/analyze/?from=lab';
-  });
   var q = new URLSearchParams(location.search).get('preset');
   if (q && P[q]) { state = Object.assign({ seed: 7 }, P[q]); document.querySelectorAll('[data-preset]').forEach(function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-preset') === q); }); }
   sync(); run();

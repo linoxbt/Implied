@@ -59,12 +59,8 @@
     var n = Object.keys(data.chain.resultByExpiration || {}).length, name = esc(String(data.ticker || 'This chain'));
     if (out.crash) note('err', esc(out.error));
     else if (out.error) note('warn', '<b class="tk">' + name + '</b>: the indicator would show this message instead of a cloud.');
-    else {
-      var full = '';
-      try { sessionStorage.setItem('implied:chain', JSON.stringify(data)); full = ' · <a class="link" href="/symbol/?t=custom">Open full charts →</a>'; } catch (e) { /* too large or storage blocked */ }
-      note('ok', '<b class="tk">' + name + '</b> · spot ' + ImpliedCharts.fmtPrice(c.S) + ' · ' + n + ' expirations in the file' + (label ? ' · ' + esc(label) : '') +
-        (c.synthetic ? ' · no closes in the file, so the history is flat' : '') + full);
-    }
+    else note('ok', '<b class="tk">' + name + '</b> · spot ' + ImpliedCharts.fmtPrice(c.S) + ' · ' + n + ' expirations in the file' + (label ? ' · ' + esc(label) : '') +
+      (c.synthetic ? ' · no closes in the file, so the history is flat' : ''));
   }
 
   function handle(text, label) {
@@ -101,9 +97,4 @@
     });
   });
 
-  if (new URLSearchParams(location.search).get('from') === 'lab') {
-    var saved = null;
-    try { saved = sessionStorage.getItem('implied:chain'); } catch (e) { /* storage blocked: nothing to load */ }
-    if (saved) handle(saved, 'handed over from the Lab');
-  }
 })();
