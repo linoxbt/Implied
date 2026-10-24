@@ -7,39 +7,39 @@
 
 <section class="wrap">
   <div class="panel" style="display:flex;gap:16px;flex-wrap:wrap;align-items:end">
-    <div style="flex:1;min-width:220px"><div class="mono" style="color:var(--text-3);margin-bottom:8px">Market</div>
+    <div style="flex:1;min-width:220px"><div class="mono" style="color:var(--ink-3);margin-bottom:8px">Market</div>
       <div class="seg" role="group" aria-label="Market" style="margin:0">
         <button type="button" data-preset="index" aria-pressed="false">Index</button>
         <button type="button" data-preset="earnings" aria-pressed="true">Earnings</button>
         <button type="button" data-preset="meme" aria-pressed="false">High IV</button>
       </div></div>
-    <div style="min-width:200px"><label class="mono" for="expiry" style="color:var(--text-3);display:block;margin-bottom:8px">Expiry</label><select id="expiry"></select></div>
+    <div style="min-width:200px"><label class="mono" for="expiry" style="color:var(--ink-3);display:block;margin-bottom:8px">Expiry</label><select id="expiry"></select></div>
   </div>
 </section>
 
 <section class="wrap section" id="s1">
-  <div class="mono" style="color:var(--text-3)">Step 01</div>
+  <div class="mono" style="color:var(--ink-3)">Step 01</div>
   <h2 class="display title">Clean the quotes</h2>
   <p class="sub">Out-of-the-money quotes only. Puts red, calls blue.</p>
   <div class="dark-card"><div class="chart-host" id="c1"></div><div class="chart-bar"><div class="chips" id="k1"></div></div></div>
 </section>
 
 <section class="wrap section" id="s2">
-  <div class="mono" style="color:var(--text-3)">Step 02 + 03</div>
+  <div class="mono" style="color:var(--ink-3)">Step 02 + 03</div>
   <h2 class="display title">Solve, then smooth</h2>
   <p class="sub">Implied volatility per strike, then a smooth spline weighted by each quote's spread.</p>
   <div class="dark-card"><div class="chart-host" id="c2"></div><div class="chart-bar"><div class="chips"><span class="chip">Dots: market implied vol</span><span class="chip fork">Line: fitted smile</span></div></div></div>
 </section>
 
 <section class="wrap section" id="s3">
-  <div class="mono" style="color:var(--text-3)">Step 04</div>
+  <div class="mono" style="color:var(--ink-3)">Step 04</div>
   <h2 class="display title">Take the density</h2>
   <p class="sub">f(K) = e^(rT) · ∂²C/∂K². Hover for the odds below any price.</p>
   <div class="dark-card"><div class="chart-host" id="c3"></div><div class="chart-bar"><div class="chips" id="k3"></div></div></div>
 </section>
 
 <section class="wrap section" id="s4">
-  <div class="mono" style="color:var(--text-3)">Step 05</div>
+  <div class="mono" style="color:var(--ink-3)">Step 05</div>
   <h2 class="display title">Paint the future</h2>
   <p class="sub">Percentiles joined into bands, widening with the square root of time.</p>
   <div class="dark-card"><div class="chart-host" id="c4"></div><div class="chart-bar"><div class="chips" id="k4"></div><span class="mono" id="status" role="status"></span></div></div>
