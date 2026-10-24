@@ -34,7 +34,14 @@
     var btn = dd.querySelector('.dd-btn');
     btn.addEventListener('click', function (e) { e.stopPropagation(); var open = !dd.classList.contains('open'); document.querySelectorAll('.dd.open').forEach(function (x) { x.classList.remove('open'); }); dd.classList.toggle('open', open); btn.setAttribute('aria-expanded', open); });
   });
-  document.addEventListener('click', function () { document.querySelectorAll('.dd.open').forEach(function (x) { x.classList.remove('open'); x.querySelector('.dd-btn').setAttribute('aria-expanded', 'false'); }); });
+  function closeMenus() { document.querySelectorAll('.dd.open').forEach(function (x) { x.classList.remove('open'); x.querySelector('.dd-btn').setAttribute('aria-expanded', 'false'); }); }
+  document.addEventListener('click', closeMenus);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(); });
+  document.querySelectorAll('.dd').forEach(function (dd) { dd.addEventListener('focusout', function (e) { if (!dd.contains(e.relatedTarget)) closeMenus(); }); });
+
+  // Keyboard hints: ⌘K on Apple devices, Ctrl K elsewhere
+  var mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  if (!mac) document.querySelectorAll('kbd').forEach(function (k) { if (k.textContent === '⌘K') k.textContent = 'Ctrl K'; });
 
   // Search palette (⌘K or /)
   var cmdk = document.getElementById('cmdk'), q = document.getElementById('cmdk-q'), lastFocus = null;
@@ -43,6 +50,7 @@
     var v = q.value.trim().toLowerCase(), first = null;
     items().forEach(function (a) { var on = !v || a.getAttribute('data-k').toLowerCase().indexOf(v) >= 0; a.hidden = !on; a.classList.remove('sel'); if (on && !first) first = a; });
     if (first) first.classList.add('sel');
+    cmdk.querySelector('.cmdk-empty').hidden = !!first;
     cmdk.querySelectorAll('.cmdk-h').forEach(function (h) {
       var n = h.nextElementSibling, any = false;
       while (n && !n.classList.contains('cmdk-h')) { if (!n.hidden) any = true; n = n.nextElementSibling; }
@@ -55,7 +63,15 @@
   }
   function closeSearch() { if (!cmdk || cmdk.hidden) return; cmdk.hidden = true; if (lastFocus) lastFocus.focus(); }
   if (cmdk) {
-    document.querySelectorAll('[data-search]').forEach(function (b) { b.addEventListener('click', function () { openSearch(b.getAttribute('data-search-q') || ''); }); });
+    document.querySelectorAll('[data-search]').forEach(function (b) { b.addEventListener('click', function () { openSearch(''); }); });
+    // Keep Tab inside the dialog while it is open
+    cmdk.addEventListener('keydown', function (e) {
+      if (e.key !== 'Tab') return;
+      var f = [q].concat(items().filter(function (a) { return !a.hidden; }));
+      var i = f.indexOf(document.activeElement);
+      if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+    });
     cmdk.addEventListener('click', function (e) { if (e.target === cmdk) closeSearch(); });
     q.addEventListener('input', filter);
     q.addEventListener('keydown', function (e) {
@@ -73,7 +89,6 @@
       else if (e.key === 'Escape') closeSearch();
     });
   }
-  global.ImpliedSearch = { open: openSearch };
 
   // Header border on scroll
   var top = document.querySelector('.top');
@@ -84,26 +99,26 @@
   var toast = document.querySelector('.toast'), timer;
   function say(msg) { if (!toast) return; toast.textContent = msg; toast.classList.add('show'); clearTimeout(timer); timer = setTimeout(function () { toast.classList.remove('show'); }, 2600); }
 
-  // Copy the script
+  // Copy the script. The text is fetched ahead of the click, because Safari
+  // only allows a clipboard write inside the click itself. If the copy is
+  // blocked, the file downloads instead.
+  var scriptUrl = '/implied.js?v=' + (document.documentElement.getAttribute('data-v') || ''), scriptText = null;
+  function fetchScript() { return fetch(scriptUrl).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); }).then(function (t) { scriptText = t; return t; }); }
+  function download() { var a = document.createElement('a'); a.href = scriptUrl; a.download = 'implied.js'; document.body.appendChild(a); a.click(); a.remove(); }
   function copyScript() {
-    return fetch('/implied.js?v=' + (document.documentElement.getAttribute('data-v') || '')).then(function (r) { if (!r.ok) throw 0; return r.text(); })
-      .then(function (t) { return navigator.clipboard.writeText(t); })
-      .then(function () { say('Copied. Paste it into the TrendSpider editor.'); })
-      .catch(function () { say('Copy failed. Use the download link instead.'); });
+    var write = scriptText != null && navigator.clipboard ? navigator.clipboard.writeText(scriptText) : fetchScript().then(function (t) { return navigator.clipboard.writeText(t); });
+    write.then(function () { say('Copied implied.js. Paste it into the TrendSpider Custom JS editor.'); })
+      .catch(function () { download(); say('Copying was blocked, so implied.js is downloading instead.'); });
   }
-  document.querySelectorAll('[data-copy]').forEach(function (b) { b.addEventListener('click', copyScript); });
+  var copyButtons = document.querySelectorAll('[data-copy]');
+  if (copyButtons.length) fetchScript().catch(function () { /* fetched again on click */ });
+  copyButtons.forEach(function (b) { b.addEventListener('click', copyScript); });
   document.querySelectorAll('[data-copy-text]').forEach(function (b) {
     b.addEventListener('click', function () {
       var src = document.querySelector(b.getAttribute('data-copy-text'));
       navigator.clipboard.writeText(src.textContent).then(function () { say('Copied.'); }, function () { say('Copy failed.'); });
     });
   });
-
-  // Reveal on scroll
-  var io = 'IntersectionObserver' in window && new IntersectionObserver(function (es) {
-    es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
-  }, { rootMargin: '0px 0px -6% 0px' });
-  document.querySelectorAll('.reveal').forEach(function (n) { io ? io.observe(n) : n.classList.add('in'); });
 
   // Range sliders: fill + live value
   function paintRange(r) { var p = (r.value - r.min) / (r.max - r.min) * 100; r.style.setProperty('--p', p + '%'); }
@@ -125,5 +140,5 @@
   }
   tick(); setInterval(tick, 30000);
 
-  global.ImpliedUI = { say: say, paintRange: paintRange, copyScript: copyScript };
+  global.ImpliedUI = { say: say, paintRange: paintRange };
 })(window);

@@ -1,5 +1,5 @@
 // Implied — shared presenter: draws a script run (cloud chart, legend chips,
-// per-expiry table). Used by Home, Lab and Analyze.
+// per-expiry table). Used by Lab, Analyze, How it works and the ticker page.
 (function (global) {
   'use strict';
   var fmt = function (v) { return ImpliedCharts.fmtPrice(v); };
@@ -61,5 +61,5 @@
     }
   }
 
-  global.ImpliedResults = { present: present, expiryRows: expiryRows, esc: esc };
+  global.ImpliedResults = { present: present, esc: esc };
 })(window);

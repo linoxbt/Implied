@@ -38,7 +38,12 @@
     return Object.assign({}, chain, { resultByExpiration: out });
   }
 
-  // Runs `code` (the text of implied.js) with the given chart and data.
+  // The globals TrendSpider gives a script, in the order the site's
+  // pre-built script function (assets/implied-fn.js) takes them.
+  var GLOBALS = ['describe_indicator', 'current', 'input', 'assert', 'request', 'close', 'time', 'series_of', 'paint_projection', 'fill', 'paint_overlay'];
+
+  // Runs `code` (the text of implied.js, or the same script pre-wrapped as an
+  // async function of GLOBALS) with the given chart and data.
   // opts: { ticker, resolution, schedule, chain, close, time, inputs, rethrow }
   // A failed assert() becomes out.error (the on-chart message). Any other
   // exception is a crash: rethrown when opts.rethrow, else out.crash = true.
@@ -85,11 +90,10 @@
         out.overlays.push({ name: name, params: params, definition: JSON.parse(JSON.stringify(definition)) });
       },
     };
-    var names = Object.keys(g);
-    var fn = new AsyncFunction(names.join(','), '"use strict";\n' + code);
+    var fn = typeof code === 'function' ? code : new AsyncFunction(GLOBALS.join(','), '"use strict";\n' + code);
     var t0 = now();
     try {
-      await fn.apply(null, names.map(function (n) { return g[n]; }));
+      await fn.apply(null, GLOBALS.map(function (n) { return g[n]; }));
     } catch (e) {
       if (e instanceof IndicatorError) out.error = e.message;
       else if (opts.rethrow) throw e;
@@ -99,22 +103,15 @@
     return out;
   }
 
-  // Browser: fetch the deployed implied.js once (versioned by the page) and run it.
-  var scriptText = null;
-  function loadScript() {
-    if (scriptText) return Promise.resolve(scriptText);
-    var v = typeof document !== 'undefined' && document.documentElement.getAttribute('data-v');
-    return fetch('/implied.js' + (v ? '?v=' + v : '')).then(function (r) {
-      if (!r.ok) throw new Error('Could not load implied.js (' + r.status + ')');
-      return r.text();
-    }).then(function (t) { scriptText = t; return t; });
-  }
+  // Browser: the site loads implied.js pre-wrapped as a function
+  // (assets/implied-fn.js, built from dist/implied.js), so pages never need
+  // eval and the CSP can forbid it. If that file failed to load, say so.
   async function runScript(opts) {
-    var code;
-    try { code = await loadScript(); } catch (e) {
-      return { error: 'Could not load implied.js. Check your connection and try again.', crash: true, projections: [], fills: [], overlays: [], inputs: [], requests: [], ms: 0 };
+    var fn = typeof self !== 'undefined' && self.__impliedScript;
+    if (typeof fn !== 'function') {
+      return { error: 'Could not load implied.js. Check your connection and reload the page.', crash: true, projections: [], fills: [], overlays: [], inputs: [], requests: [], ms: 0 };
     }
-    return runCode(code, opts);
+    return runCode(fn, opts);
   }
 
   // ---------- Synthetic chains ----------
@@ -198,10 +195,16 @@
     return { schedule: schedule, chain: { underlyingSymbolQuote: { lastPrice: p.spot || p.S }, resultByExpiration: res } };
   }
 
-  function todayUtc() { var d = new Date(); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); }
+  // The last weekday (UTC midnight): the simulated chart's last candle, so
+  // weekly expiries land on Fridays and days-to-expiry match the chart.
+  function todayUtc() {
+    var d = new Date(), t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), dow = new Date(t).getUTCDay();
+    return t - (dow === 6 ? 1 : dow === 0 ? 2 : 0) * 86400000;
+  }
 
-  // Daily candles ending at asOf (weekdays only), last close = S.
-  function candles(S, n, seed, asOf, drift) {
+  // Daily candles ending at asOf (weekdays only), last close = S. vol is the
+  // annualized volatility of the path (about 15% when omitted).
+  function candles(S, n, seed, asOf, drift, vol) {
     n = n || 260;
     var rand = rng(seed || 3), close = [], time = [];
     var end = (asOf || todayUtc()) / 1000;
@@ -210,7 +213,8 @@
       if (dow !== 0 && dow !== 6) time.unshift(ts);
     }
     var p = 100;
-    for (var i = 0; i < n; i++) { p *= Math.exp((rand() - 0.5) * 0.032 + (drift == null ? 0.0004 : drift)); close.push(p); }
+    var width = vol ? vol / Math.sqrt(252) * Math.sqrt(12) : 0.032; // a uniform step of this width has sd vol/sqrt(252)
+    for (var i = 0; i < n; i++) { p *= Math.exp((rand() - 0.5) * width + (drift == null ? 0.0004 : drift)); close.push(p); }
     var k = S / close[n - 1];
     return { close: close.map(function (c) { return c * k; }), time: time };
   }
@@ -271,7 +275,7 @@
   }
 
   return {
-    runCode: runCode, runScript: runScript, limitStrikes: limitStrikes, STYLES: STYLES, MAX_PROJECTION: MAX_PROJECTION,
+    GLOBALS: GLOBALS, runCode: runCode, runScript: runScript, limitStrikes: limitStrikes, STYLES: STYLES, MAX_PROJECTION: MAX_PROJECTION,
     rng: rng, trueCall: trueCall, expiryQuotes: expiryQuotes, expiryOf: expiryOf, ticker: ticker, candles: candles,
     synth: synth, PRESETS: PRESETS, TICKERS: TICKERS, explain: explain, trueDensity: trueDensity,
   };

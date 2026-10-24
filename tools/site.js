@@ -25,10 +25,10 @@ const NAV = [
   { slug: 'validation', name: 'Validation', blurb: 'Run the accuracy checks yourself' },
   { slug: 'install', name: 'Install', blurb: 'One file into TrendSpider, about a minute' },
 ];
-const TICKERS = require('../web/assets/engine.js').TICKERS;
+const { TICKERS, GLOBALS } = require('../web/assets/engine.js');
+let VERSION = '';
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const burst = Array.from({ length: 28 }, (_, i) => { const a = Math.PI * i / 14, r = i % 2 ? 41 : 50; return (50 + r * Math.cos(a)).toFixed(1) + ',' + (50 + r * Math.sin(a)).toFixed(1); }).join(' ');
 
 // Stress-run numbers, from docs/stress.json (written by `npm run stress -- --write`).
 const STRESS = JSON.parse(fs.readFileSync(path.join(root, 'docs/stress.json'), 'utf8'));
@@ -42,7 +42,7 @@ function testList() {
   const rows = [];
   for (const f of fs.readdirSync(path.join(root, 'test')).filter(f => f.endsWith('.test.js')).sort()) {
     const src = fs.readFileSync(path.join(root, 'test', f), 'utf8');
-    for (const m of src.matchAll(/\btest\((['`])(.+?)\1/g)) rows.push(`<tr><td class="l"><code>${esc(f)}</code></td><td class="l">${esc(m[2].replace('${f}', '(each file in chains/)'))}</td></tr>`);
+    for (const m of src.matchAll(/\btest\((['"`])(.+?)\1,/g)) rows.push(`<tr><td class="l"><code>${esc(f)}</code></td><td class="l">${esc(m[2].replace(/\\(['"`])/g, '$1').replace('${f}', '(each file in chains/)'))}</td></tr>`);
   }
   return rows.join('');
 }
@@ -59,17 +59,17 @@ function head(meta, version) {
 <meta name="description" content="${esc(meta.description)}">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(meta.description)}">
-<meta property="og:image" content="${SITE}/assets/og.png">
+<meta property="og:image" content="${SITE}/assets/og.png?v=${version}">
 <meta property="og:url" content="${SITE}/${slug ? slug + '/' : ''}">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="canonical" href="${SITE}/${slug ? slug + '/' : ''}">
+${meta.file === '404.html' ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${SITE}/${slug ? slug + '/' : ''}">`}
 <meta name="theme-color" content="#ffffff">
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/assets/icon-180.png">
+<link rel="icon" href="/assets/favicon.svg?v=${version}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/icon-180.png?v=${version}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=${version}">
 </head>`;
 }
@@ -80,7 +80,7 @@ const RESOURCES = ['how-it-works', 'validation', 'analyze', 'install'];
 function header(slug) {
   const res = NAV.filter(n => RESOURCES.includes(n.slug));
   return `<header class="top"><div class="wrap">
-  <a class="brand" href="/" aria-label="Implied home"><img src="/assets/logo-mark.svg" alt=""><b>Implied</b></a>
+  <a class="brand" href="/" aria-label="Implied home"><img src="/assets/logo-mark.svg?v=${VERSION}" alt=""><b>Implied</b></a>
   <nav class="top-nav" aria-label="Main">
     ${link('', 'Home', slug)}${link('symbol', 'Explore', slug)}${link('lab', 'Lab', slug)}${link('fork', 'The Fork', slug)}
     <div class="dd"><button type="button" class="dd-btn" aria-expanded="false"${RESOURCES.includes(slug) ? ' data-current' : ''}>Resources <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
@@ -89,7 +89,7 @@ function header(slug) {
   </nav>
   <div class="top-actions">
     <a class="nav-link hide-sm" href="/install/">Install</a>
-    <button class="btn primary" type="button" data-copy>Get the script</button>
+    <button class="btn primary" type="button" data-copy>Copy script</button>
     <button class="icon-btn only-sm" type="button" data-search aria-label="Search"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m14 14 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
     <button class="burger" type="button" aria-controls="menu" aria-expanded="false" aria-label="Open menu"><span></span></button>
   </div>
@@ -98,8 +98,9 @@ function header(slug) {
   <nav aria-label="Pages">${NAV.map(n => `<a href="/${n.slug ? n.slug + '/' : ''}"${n.slug === slug ? ' aria-current="page"' : ''}><b>${n.name}</b><small>${n.blurb}</small></a>`).join('')}</nav>
 </div></div>
 <div class="cmdk" id="cmdk" hidden><div class="cmdk-box" role="dialog" aria-modal="true" aria-label="Search">
-  <div class="cmdk-in"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m14 14 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="cmdk-q" type="text" placeholder="Search ticker or page" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
-  <div class="cmdk-list" id="cmdk-list" role="listbox">
+  <div class="cmdk-in"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m14 14 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="cmdk-q" type="text" placeholder="Search ticker or page" aria-label="Search tickers and pages" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <div class="cmdk-list" id="cmdk-list" role="listbox" aria-label="Results">
+    <p class="cmdk-empty" hidden>No match. This site has simulated tickers only; in TrendSpider, Implied reads any ticker with listed US options.</p>
     <p class="cmdk-h">Tickers (simulated chains)</p>
     ${TICKERS.map(t => `<a role="option" href="/symbol/?t=${t.sym}" data-k="${t.sym} ${esc(t.name)}"><b>${t.sym}</b><span>${esc(t.name)}</span></a>`).join('')}
     <a role="option" href="/analyze/" data-k="analyze your own chain upload trendspider"><b>Your chain</b><span>Analyze a chain saved from TrendSpider</span></a>
@@ -112,7 +113,7 @@ function header(slug) {
 function footer() {
   return `<footer class="foot"><div class="wrap">
   <div class="foot-grid">
-    <div><a class="brand" href="/"><img src="/assets/logo-mark.svg" alt=""><b>Implied</b></a><p>The options market's full implied probability distribution, painted into the future on your TrendSpider chart. Free and open source.</p></div>
+    <div><a class="brand" href="/"><img src="/assets/logo-mark.svg?v=${VERSION}" alt=""><b>Implied</b></a><p>The options market's full implied probability distribution, painted into the future on your TrendSpider chart. Free and open source.</p></div>
     <div><h5>Product</h5><a href="/symbol/">Explore</a><a href="/lab/">Lab</a><a href="/fork/">The Fork</a><a href="/analyze/">Analyze a chain</a></div>
     <div><h5>Resources</h5><a href="/how-it-works/">How it works</a><a href="/validation/">Validation</a><a href="/install/">Install</a><a href="${REPO}">GitHub</a></div>
     <div><h5>Market</h5><div class="clock"><i id="mk"></i><span id="clock">US equities</span></div><p class="small">Charts on this site use simulated chains. In TrendSpider, Implied reads the live options market.</p></div>
@@ -122,8 +123,10 @@ function footer() {
 }
 
 function scriptsOf(meta, version) {
-  const order = ['core', 'engine', 'charts', 'plot', 'results', 'market'];
-  const sorted = (meta.scripts || []).slice().sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+  const scripts = (meta.scripts || []).slice();
+  if (scripts.includes('engine')) scripts.push('implied-fn');
+  const order = ['core', 'implied-fn', 'engine', 'charts', 'plot', 'results', 'market'];
+  const sorted = scripts.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
   return `<div class="toast" role="status" aria-live="polite"></div>
 <script src="/assets/app.js?v=${version}"></script>
 ${sorted.map(s => `<script src="/assets/${s}.js?v=${version}"></script>`).join('\n')}`;
@@ -158,6 +161,9 @@ function main() {
   const script = fs.readFileSync(path.join(root, 'dist/implied.js'), 'utf8');
   fs.writeFileSync(path.join(out, 'implied.js'), script);
   fs.writeFileSync(path.join(out, 'assets/core.js'), coreForBrowser());
+  // The script pre-wrapped as a function of TrendSpider's globals, so the
+  // pages run it without eval (the CSP forbids eval).
+  fs.writeFileSync(path.join(out, 'assets/implied-fn.js'), '// Built from dist/implied.js by tools/site.js. Do not edit.\nself.__impliedScript = async function (' + GLOBALS.join(', ') + ') {\n"use strict";\n' + script + '\n};\n');
   // Cache-busting version: a hash of every file the pages load.
   const hash = require('crypto').createHash('sha1');
   (function add(dir) {
@@ -167,6 +173,7 @@ function main() {
     }
   })(out);
   const version = hash.digest('hex').slice(0, 10);
+  VERSION = version;
 
   const pages = fs.readdirSync(path.join(web, 'pages')).filter(f => f.endsWith('.html'));
   for (const f of pages) {
@@ -174,7 +181,7 @@ function main() {
     const m = src.match(/^<!--(\{[\s\S]*?\})-->\n/);
     if (!m) throw new Error(f + ': missing page metadata comment');
     const meta = JSON.parse(m[1]);
-    const body = src.slice(m[0].length).replace('%%BURST%%', burst).replace('%%TESTS%%', testList()).replace(/%%STRESS_(\w+)%%/g, (m, k) => stressValue(k));
+    const body = src.slice(m[0].length).replace('%%TESTS%%', testList()).replace(/%%STRESS_(\w+)%%/g, (m, k) => stressValue(k));
     for (const s of meta.scripts || []) if (!fs.existsSync(path.join(out, 'assets', s + '.js'))) throw new Error(f + ': missing script ' + s);
     const file = meta.file ? path.join(out, meta.file) : path.join(out, meta.slug, 'index.html');
     fs.mkdirSync(path.dirname(file), { recursive: true });

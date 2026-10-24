@@ -10,8 +10,8 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    # 'unsafe-eval': the pages run implied.js in the browser (AsyncFunction), as TrendSpider does.
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
+    # No eval: the pages run implied.js from assets/implied-fn.js, a pre-wrapped copy built by tools/site.js.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
@@ -22,7 +22,8 @@
     Content-Type = "text/javascript; charset=utf-8"
     Cache-Control = "public, max-age=300"
 
+# Every asset URL on the pages carries ?v=<content hash>, so assets can be cached for good.
 [[headers]]
   for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=3600"
+    Cache-Control = "public, max-age=31536000, immutable"

@@ -32,7 +32,7 @@
   }
 
   // Shared frame: sizing, redraw on resize, tooltip element.
-  function mount(host, draw, ratio, minH, maxH) {
+  function mount(host, draw, ratio, minH, maxH, label) {
     host.classList.add('chart');
     clear(host);
     var tip = document.createElement('div'); tip.className = 'tip'; host.appendChild(tip);
@@ -43,7 +43,7 @@
       last = w;
       var h = Math.round(Math.max(minH, Math.min(maxH, w * ratio)));
       if (svg) svg.remove();
-      svg = el('svg', { viewBox: '0 0 ' + w + ' ' + h, width: w, height: h, role: 'img' });
+      svg = el('svg', { viewBox: '0 0 ' + w + ' ' + h, width: w, height: h, role: 'img', 'aria-label': label || 'Chart' });
       host.insertBefore(svg, tip);
       draw(svg, w, h, tip);
     }
@@ -80,7 +80,8 @@
   }
   function cloud(host, opts) {
     var out = opts.out, proj = out.projections || [];
-    var hist = opts.close.slice(-(opts.history || 126)), times = opts.time.slice(-(opts.history || 126));
+    // Candle times may come in seconds or milliseconds
+    var hist = opts.close.slice(-(opts.history || 126)), times = opts.time.slice(-(opts.history || 126)).map(function (t) { t = Number(t); return t > 1e12 ? t / 1000 : t; });
     var bands = proj.slice(0, 7), marks = proj.slice(7);
     var L = 0;
     if (bands.length) bands[0].series.forEach(function (v, i) { if (v != null) L = i; });
@@ -173,7 +174,7 @@
       }
       function leave() { hideTip(tip); cross.setAttribute('visibility', 'hidden'); hd.setAttribute('visibility', 'hidden'); dots.forEach(function (d) { d.setAttribute('visibility', 'hidden'); }); }
       svg.addEventListener('mousemove', move); svg.addEventListener('touchmove', move, { passive: true }); svg.addEventListener('mouseleave', leave); svg.addEventListener('touchend', leave);
-    }, 0.48, 300, 520);
+    }, 0.48, 300, 520, 'Price history and the projected probability cloud');
   }
 
   // ---------- Density at one expiry ----------
@@ -236,7 +237,7 @@
       }
       function leave() { hideTip(tip); cross.setAttribute('visibility', 'hidden'); }
       svg.addEventListener('mousemove', move); svg.addEventListener('touchmove', move, { passive: true }); svg.addEventListener('mouseleave', leave); svg.addEventListener('touchend', leave);
-    }, 0.42, 240, 380);
+    }, 0.42, 240, 380, 'Probability density at expiration');
   }
 
   // ---------- Volatility smile: quotes with spread error bars + fitted curve ----------
@@ -281,7 +282,7 @@
       }
       function leave() { hideTip(tip); cross.setAttribute('visibility', 'hidden'); }
       svg.addEventListener('mousemove', move); svg.addEventListener('touchmove', move, { passive: true }); svg.addEventListener('mouseleave', leave); svg.addEventListener('touchend', leave);
-    }, 0.42, 240, 380);
+    }, 0.42, 240, 380, 'Implied volatility by strike, with the fitted smile');
   }
 
   // ---------- Raw quotes: OTM bid/ask by strike, kept vs dropped ----------
@@ -322,7 +323,7 @@
       }
       function leave() { hideTip(tip); cross.setAttribute('visibility', 'hidden'); }
       svg.addEventListener('mousemove', move); svg.addEventListener('touchmove', move, { passive: true }); svg.addEventListener('mouseleave', leave); svg.addEventListener('touchend', leave);
-    }, 0.36, 220, 340);
+    }, 0.36, 220, 340, 'Option quotes by strike');
   }
 
   // ---------- The script's paint_overlay panel, drawn over a chart ----------
@@ -355,5 +356,5 @@
     host.appendChild(box);
   }
 
-  global.ImpliedCharts = { overlay: overlay, clear: clear, cloud: cloud, density: densityChart, smile: smileChart, quotes: quotesChart, fmtPrice: fmtPrice, QLABEL: QLABEL };
+  global.ImpliedCharts = { overlay: overlay, clear: clear, cloud: cloud, density: densityChart, smile: smileChart, quotes: quotesChart, fmtPrice: fmtPrice };
 })(window);

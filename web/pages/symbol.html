@@ -3,19 +3,19 @@
   <div class="sym-id"><div class="sym-logo" id="s-logo">—</div><div><h1 id="s-name">Loading…</h1><div class="tkr"><span id="s-sym" class="tk"></span></div></div></div>
   <div class="quote">
     <div><div><span class="px" id="s-px">—<small>USD</small></span><span class="chg" id="s-chg"></span></div><div class="meta" id="s-asof"></div>
-      <div class="badges"><span class="badge sim"><i>S</i><span id="s-src">Simulated chain · not market data</span></span><span class="badge mk"><i>i</i>Implied distribution: free, every expiration</span></div></div>
+      <div class="badges"><span class="badge sim"><i>S</i><span id="s-src">Simulated chain · not market data</span></span></div></div>
   </div>
-  <nav class="tabs" role="tablist" aria-label="Sections">
-    <button role="tab" data-tab="overview" aria-selected="false">Overview</button>
-    <button role="tab" data-tab="charts" aria-selected="true">Charts</button>
-    <button role="tab" data-tab="chain" aria-selected="false">Option Chain</button>
-    <button role="tab" data-tab="ts" aria-selected="false">On TrendSpider</button>
-  </nav>
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-overview" data-tab="overview" aria-controls="pane-overview" aria-selected="false" tabindex="-1" disabled>Overview</button>
+    <button role="tab" id="tab-charts" data-tab="charts" aria-controls="pane-charts" aria-selected="true" disabled>Charts</button>
+    <button role="tab" id="tab-chain" data-tab="chain" aria-controls="pane-chain" aria-selected="false" tabindex="-1" disabled>Option Chain</button>
+    <button role="tab" id="tab-ts" data-tab="ts" aria-controls="pane-ts" aria-selected="false" tabindex="-1" disabled>On TrendSpider</button>
+  </div>
 </section>
 
 <section class="wrap">
   <!-- Overview -->
-  <div class="pane" data-pane="overview" hidden>
+  <div class="pane" role="tabpanel" id="pane-overview" aria-labelledby="tab-overview" data-pane="overview" hidden>
     <div class="ranges" id="ov-ranges" role="group" aria-label="Range"><button data-r="21">1M</button><button data-r="63">3M</button><button data-r="126">6M</button><button data-r="252" aria-pressed="true">1Y</button><span class="perf" id="ov-perf"></span></div>
     <div id="ov-chart"></div>
     <h2 id="ov-title">Overview</h2>
@@ -25,8 +25,8 @@
     <div class="ov-grid" id="ov-implied"></div>
   </div>
 
-  <!-- Option charts -->
-  <div class="pane" data-pane="charts">
+  <!-- Charts -->
+  <div class="pane" role="tabpanel" id="pane-charts" aria-labelledby="tab-charts" data-pane="charts">
     <div class="chipnav" role="group" aria-label="Chart">
       <button data-chart="prob" aria-pressed="true">Probability Distribution</button><button data-chart="cloud" aria-pressed="false">Projection Cloud</button><button data-chart="skew" aria-pressed="false">Volatility Skew</button><button data-chart="em" aria-pressed="false">Expected Move</button><button data-chart="fork" aria-pressed="false">The Fork</button>
     </div>
@@ -34,7 +34,7 @@
   </div>
 
   <!-- Option chain -->
-  <div class="pane" data-pane="chain" hidden>
+  <div class="pane" role="tabpanel" id="pane-chain" aria-labelledby="tab-chain" data-pane="chain" hidden>
     <h2><span class="tk" data-sym></span> Option Chain</h2>
     <p class="lead">Bid and ask for every strike in the expiration, as TrendSpider returns it (40 strikes each side). Highlighted rows are the out-of-the-money quotes Implied used, with the implied volatility it solved.</p>
     <div class="controls"><label class="ctl-select">Expiration Date <select id="ch-exp"></select></label><span class="muted small" id="ch-info"></span></div>
@@ -42,7 +42,7 @@
   </div>
 
   <!-- TrendSpider -->
-  <div class="pane" data-pane="ts" hidden>
+  <div class="pane" role="tabpanel" id="pane-ts" aria-labelledby="tab-ts" data-pane="ts" hidden>
     <h2>See this on your TrendSpider chart</h2>
     <p class="lead">Implied is a TrendSpider custom indicator. On a Daily chart of any ticker with listed US options, it reads the live chain and paints everything on this page into the future: the percentile bands, the skew in words, and the Fork.</p>
     <div class="stats">

@@ -46,7 +46,7 @@ function chartSvg(name, out, close, theme) {
   }
   for (const p of proj) {
     if (p.hidden) continue;
-    const dash = p.style === 'dotted' ? '2 3' : p.style === 'dashed' ? '6 4' : '';
+    const dash = p.style === 'dotted' ? '2 3' : '';
     let seg = [];
     const flush = () => {
       if (seg.length) parts.push(`<polyline fill="none" stroke="${p.color}" stroke-width="${p.color === '#ffb347' ? 2.5 : 1.5}" stroke-dasharray="${dash}" points="${seg.join(' ')}"/>`);

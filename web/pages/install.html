@@ -41,6 +41,9 @@
   <div class="table-wrap"><table class="data"><thead><tr><th class="l">Situation</th><th class="l">What you see on the chart</th></tr></thead><tbody>
     <tr><td class="l">Not a Daily chart</td><td class="l">“Implied runs on the Daily timeframe only.”</td></tr>
     <tr><td class="l">No listed options (crypto, most futures, forex), or no OPRA subscription</td><td class="l">“No options data for X. Implied needs a ticker with listed options and an OPRA subscription.” plus the data error, if any</td></tr>
+    <tr><td class="l">No price history on the chart</td><td class="l">“Implied needs price history on the chart.”</td></tr>
+    <tr><td class="l">An options request fails</td><td class="l">The “No options data for X…” message, with the request's error in brackets</td></tr>
+    <tr><td class="l">No expiration within reach</td><td class="l">“Options data for X did not include any expiration in the next 99 days.” (99 trading days in trading-day mode)</td></tr>
     <tr><td class="l">Every expiry too thin</td><td class="l">“Not enough liquid strikes on X to build a distribution.”</td></tr>
     <tr><td class="l">Some expiries thin</td><td class="l">Those are skipped; the rest still draw</td></tr>
   </tbody></table></div>

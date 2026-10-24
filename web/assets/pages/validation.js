@@ -49,7 +49,8 @@
     var ex = Implied.explain(q.byStrike, 100, T, r, 0.5);
     var expected = ex.F * Math.exp(-0.25 * 0.25 * T / 2), med = ex.shape.q[3], err = Math.abs(med / expected - 1);
     set('median', (err * 100).toFixed(3) + '% off', err < 0.002);
-    var area = 0; for (var k = 1; k < ex.d.Ks.length; k++) area += 0.5 * (ex.d.pdf[k] + ex.d.pdf[k - 1]) * (ex.d.Ks[k] - ex.d.Ks[k - 1]);
+    // The raw Breeden-Litzenberger integral, before the density is normalized
+    var area = ex.d.mass;
     set('area', area.toFixed(4), Math.abs(area - 1) < 0.001);
     done++; bar.style.width = (done / all * 100) + '%'; await tick();
 

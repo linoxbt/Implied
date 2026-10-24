@@ -9,6 +9,7 @@
   <div class="stack">
     <div class="panel">
       <h2>1 · Get your chain</h2>
+      <p class="muted small">In TrendSpider, open your copy of implied.js and paste this line just after the two requests (after <code>need(chain &amp;&amp; …)</code>). Run it on a Daily chart, open the browser console, copy the JSON it prints and save it as a .json file. Then delete the line again. Real OPRA data is licensed: keep these files on your own machine.</p>
       <div class="code" id="snippet">console.log(JSON.stringify({ ticker: current.ticker, schedule, chain, close: close.slice(-260), time: time.slice(-260) }));<button class="pill sm dark" data-copy-text="#snippet-text">Copy</button></div>
       <span id="snippet-text" class="sr">console.log(JSON.stringify({ ticker: current.ticker, schedule, chain, close: close.slice(-260), time: time.slice(-260) }));</span>
     </div>
@@ -27,7 +28,7 @@
     <div class="panel">
       <h2>Settings</h2>
       <div class="field"><label for="exp">Expirations to project <output data-for="exp">4</output></label><input type="range" id="exp" min="1" max="8" step="1" value="4"></div>
-      <div class="field"><label for="rate">Risk-free rate <output data-for="rate">4.0%</output></label><input type="range" id="rate" min="0" max="10" step="0.25" value="4"></div>
+      <div class="field"><label for="rate">Risk-free rate <output data-for="rate">4.0%</output></label><input type="range" id="rate" min="0" max="15" step="0.25" value="4"></div>
       <div class="field"><label for="spr">Max bid-ask spread <output data-for="spr">0.50 of mid</output></label><input type="range" id="spr" min="0.05" max="2" step="0.05" value="0.5"></div>
       <div class="field"><label for="mins">Min usable strikes <output data-for="mins">8</output></label><input type="range" id="mins" min="5" max="60" step="1" value="8"></div>
     </div>

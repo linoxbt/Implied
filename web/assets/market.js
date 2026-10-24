@@ -1,6 +1,6 @@
-// Implied — ticker data for the site: a simulated chain (or the chain you
-// saved from TrendSpider), each expiry modelled with the same core functions
-// the indicator uses, and the real script's output for the projection.
+// Implied — ticker data for the site: a simulated chain, each expiry
+// modelled with the same core functions the indicator uses, and the real
+// script's output for the projection.
 (function (global) {
   'use strict';
   var R = 0.04, SPREAD = 0.5, MIN_STRIKES = 8;
@@ -37,21 +37,11 @@
   }
 
   function load(sym) {
-    var data;
-    if (String(sym).toLowerCase() === 'custom') {
-      var raw = null;
-      try { raw = sessionStorage.getItem('implied:chain'); } catch (e) { /* storage blocked */ }
-      if (!raw) return Promise.reject(new Error('No saved chain in this tab. Load one on the Analyze page first.'));
-      var j = JSON.parse(raw);
-      var S0 = Number(j.chain && j.chain.underlyingSymbolQuote && j.chain.underlyingSymbolQuote.lastPrice);
-      var close = Array.isArray(j.close) && j.close.length > 1 ? j.close.map(Number) : new Array(260).fill(S0);
-      var now = Math.floor(Date.now() / 1000), time = Array.isArray(j.time) && j.time.length === close.length ? j.time.map(Number) : close.map(function (_, i) { return now - (close.length - 1 - i) * 86400; });
-      data = { sym: String(j.ticker || 'CHAIN').toUpperCase(), name: 'Your saved chain', kind: 'Custom', custom: true, schedule: j.schedule, chain: j.chain, close: close, time: time };
-    } else {
-      var t = find(sym) || Implied.TICKERS[0];
-      var p = Object.assign({ seed: 7 }, Implied.PRESETS[t.preset]), d = Implied.synth(p), c = Implied.candles(p.S, 260, 5 + Implied.TICKERS.indexOf(t) * 4);
-      data = { sym: t.sym, name: t.name, kind: t.kind, preset: t.preset, schedule: d.schedule, chain: d.chain, close: c.close, time: c.time };
-    }
+    var t = find(sym);
+    if (!t) return Promise.reject(Object.assign(new Error('unknown ticker'), { unknown: String(sym || '').toUpperCase() }));
+    var p = Object.assign({ seed: 7 }, Implied.PRESETS[t.preset]), d = Implied.synth(p);
+    var c = Implied.candles(p.S, 260, 5 + Implied.TICKERS.indexOf(t) * 4, undefined, undefined, p.vol / 100);
+    var data = { sym: t.sym, name: t.name, kind: t.kind, preset: t.preset, schedule: d.schedule, chain: d.chain, close: c.close, time: c.time };
     var q = Number(data.chain && data.chain.underlyingSymbolQuote && data.chain.underlyingSymbolQuote.lastPrice);
     data.S = q > 0 ? q : data.close[data.close.length - 1];
     data.r = R;
@@ -76,8 +66,6 @@
     });
     return best && { K: best.K, price: best.c + best.p };
   }
-  // A shape for an expiry, via the core (quantiles, skew, Fork).
-  function shape(e) { return e.ok ? e.ex.shape : null; }
 
-  global.ImpliedMarket = { load: load, find: find, atmIv: atmIv, lognormal: lognormal, sigmaPrice: sigmaPrice, straddle: straddle, shape: shape, short: short, ymd: ymd };
+  global.ImpliedMarket = { load: load, find: find, atmIv: atmIv, lognormal: lognormal, sigmaPrice: sigmaPrice, straddle: straddle, short: short, ymd: ymd };
 })(window);

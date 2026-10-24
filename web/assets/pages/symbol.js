@@ -8,8 +8,21 @@
   var pct = function (x, d) { return (x * 100).toFixed(d == null ? 1 : d) + '%'; };
 
   function setUrl() {
-    var q = '?t=' + (D.custom ? 'custom' : D.sym) + (tab !== 'charts' ? '&tab=' + tab : '') + (tab === 'charts' && chart !== 'prob' ? '&chart=' + chart : '');
+    var q = '?t=' + D.sym + (tab !== 'charts' ? '&tab=' + tab : '') + (tab === 'charts' && chart !== 'prob' ? '&chart=' + chart : '');
     history.replaceState(null, '', '/symbol/' + q);
+  }
+  // Redraws replace the pane's HTML: keep keyboard focus on the same control,
+  // and stop the replaced charts' resize observers.
+  function redraw(fn) {
+    var pane = $('chart-pane'), a = document.activeElement, sel = null;
+    if (a && pane.contains(a)) {
+      if (a.getAttribute('data-key')) sel = '[data-key="' + a.getAttribute('data-key') + '"]';
+      else if (a.getAttribute('data-v') && a.parentNode.getAttribute('data-seg')) sel = '[data-seg="' + a.parentNode.getAttribute('data-seg') + '"] [data-v="' + a.getAttribute('data-v') + '"]';
+      else if (a.id) sel = '#' + a.id;
+    }
+    pane.querySelectorAll('*').forEach(function (n) { if (n._ro) { n._ro.disconnect(); n._ro = null; } });
+    fn();
+    if (sel) { var n = pane.querySelector(sel); if (n) n.focus(); }
   }
   function okList() { return D.expiries.filter(function (e) { return e.ok && e.dte <= 120; }); }
   // Default expiration: the first Fork if there is one, else the one nearest 30 days.
@@ -23,18 +36,18 @@
       return '<button type="button" data-key="' + e.key + '" aria-pressed="' + on + '">' + (on && multi ? '<i style="background:' + COLORS[i % COLORS.length] + '"></i>' : '') + e.date + ' <span class="muted">(' + e.dte + 'd)</span></button>';
     }).join('') + '</div>';
   }
-  function bindExp(id, multi, redraw) {
+  function bindExp(id, multi, draw) {
     $(id).querySelectorAll('button').forEach(function (b) {
       b.addEventListener('click', function () {
         var e = D.expiries.filter(function (x) { return x.key === b.getAttribute('data-key'); })[0], i = sel.indexOf(e);
         if (!multi) sel = [e];
         else if (i >= 0) { if (sel.length > 1) sel.splice(i, 1); } else { if (sel.length >= 4) sel.shift(); sel.push(e); }
-        redraw();
+        redraw(draw);
       });
     });
   }
   function segBtns(name, opts, cur) { return '<div class="seg" role="group" data-seg="' + name + '">' + opts.map(function (o) { return '<button type="button" data-v="' + o[0] + '" aria-pressed="' + (o[0] === cur) + '">' + o[1] + '</button>'; }).join('') + '</div>'; }
-  function bindSeg(host, name, fn) { host.querySelectorAll('[data-seg="' + name + '"] button').forEach(function (b) { b.addEventListener('click', function () { fn(b.getAttribute('data-v')); }); }); }
+  function bindSeg(host, name, fn) { host.querySelectorAll('[data-seg="' + name + '"] button').forEach(function (b) { b.addEventListener('click', function () { var v = b.getAttribute('data-v'); redraw(function () { fn(v); }); }); }); }
   function xRange(list, lo, hi) {
     var a = Infinity, b = -Infinity;
     list.forEach(function (e) { a = Math.min(a, quantile(e.ex.d, lo)); b = Math.max(b, quantile(e.ex.d, hi)); });
@@ -83,7 +96,7 @@
         series.map(function (s) { var pa = s.below(a), pb = s.below(b); return '<tr><td><b>' + esc(s.name) + '</b></td><td>' + pct(pa, 2) + '</td><td>' + pct(pb - pa, 2) + '</td><td>' + pct(1 - pb, 2) + '</td></tr>'; }).join('') + '</tbody>';
     }
     [lo, hi].forEach(function (inp) { inp.addEventListener('input', function () { var v = Number(inp.value); if (v > 0) { if (inp === lo) prob.lo = v; else prob.hi = v; table(); } }); });
-    $('p-sig').addEventListener('click', function () { prob.lo = null; drawProb(); });
+    $('p-sig').addEventListener('click', function () { prob.lo = null; redraw(drawProb); });
     table();
   }
 
@@ -157,20 +170,27 @@
     var host = $('chart-pane'), list = okList();
     if (!sel.length || sel.length > 1) sel = [list.filter(function (e) { return e.ex.shape.fork; })[0] || list.filter(function (e) { return e.dte >= 7; })[0] || list[0]];
     var e = sel[0], dg = e.ex.diag, f = e.ex.shape.fork;
+    // A second bump under 25% of the main peak is noise in the wing, not a peak.
+    var single = dg.peaks < 2 || dg.height == null || dg.height < FORK_HEIGHT;
     host.innerHTML = '<h2><span class="tk">' + esc(D.sym) + '</span> Fork Detection</h2>' +
       '<p class="lead">The Fork is when the options market prices two separate outcomes, usually around earnings, and the middle becomes the least likely place to land. Implied checks every expiration with three rules and a data gate.</p>' +
       '<div class="controls"><span class="ctl-select">Expiration Date</span>' + expButtons('fe', list, false) + '</div>' +
-      '<div class="verdict">' + (f ? '<span class="chip fork big">Fork detected</span><b>' + esc(forkLabel(f)) + '</b>' : '<span class="chip big">One outcome</span><b>' + (dg.peaks < 2 ? 'The market prices a single peak at this expiration.' : 'Two bumps, but no Fork: ' + esc(dg.reason) + '.') + '</b>') + '</div>' +
+      '<div class="verdict">' + (f ? '<span class="chip fork big">Fork detected</span><b>' + esc(forkLabel(f)) + '</b>' : '<span class="chip big">One outcome</span><b>' + (single ? 'The market prices a single peak at this expiration.' : 'Two peaks, but no Fork: ' + esc(dg.reason) + '.') + '</b>') + '</div>' +
       '<div class="dark-card"><div class="chart-host" id="fc"></div></div>' +
       '<div class="ptable"><h3>The rules</h3><div class="table-wrap"><table class="data" id="ft"></table></div><p style="margin-top:12px"><a class="link" href="/fork/">Build your own two-outcome market in the Fork lab →</a></p></div>';
     bindExp('fe', false, drawFork);
     ImpliedCharts.density($('fc'), { d: e.ex.d, q: e.ex.shape.q, fork: f, F: e.ex.F, spot: D.S });
-    var rows = [['Smaller peak at least 25% of the taller', '≥ 25%', dg.height, dg.height != null && dg.height >= FORK_HEIGHT],
-      ['Peaks at least 3% of the forward apart', '≥ 3%', dg.separation, dg.separation != null && dg.separation >= FORK_SEPARATION],
-      ['Valley below 70% of the smaller peak', '< 70%', dg.valley, dg.valley != null && dg.valley < FORK_VALLEY]];
+    // The rules run in order and stop at the first that fails; later ones are "not reached".
+    var hOk = !single, vOk = hOk && dg.valley < FORK_VALLEY, gateRan = hOk && vOk;
+    var res = function (ran, ok) { return !ran ? '<span class="muted">not reached</span>' : ok ? '<span class="pass">Pass</span>' : '<span class="fail">Fail</span>'; };
+    var rows = [
+      ['Smaller peak at least 25% of the taller', '≥ 25%', dg.peaks < 2 ? 'one peak' : pct(dg.height), dg.peaks >= 2, hOk],
+      ['Peaks at least 3% of the forward apart', '≥ 3%', dg.peaks < 2 ? '—' : pct(dg.separation), dg.peaks >= 2, dg.peaks >= 2],
+      ['Valley below 70% of the smaller peak', '< 70%', hOk ? pct(dg.valley) : '—', hOk, vOk],
+      ['Data gate: peaks inside the quoted strikes, enough quotes between them, quotes cover most of the probability', 'all', gateRan ? esc(f ? 'passed' : dg.reason) : '—', gateRan, !!f],
+    ];
     $('ft').innerHTML = '<thead><tr><th class="l">Rule</th><th>Needs</th><th>This expiration</th><th>Result</th></tr></thead><tbody>' +
-      rows.map(function (r) { return '<tr><td class="l">' + r[0] + '</td><td>' + r[1] + '</td><td>' + (r[2] == null ? 'one peak' : pct(r[2])) + '</td><td>' + (r[2] == null ? '—' : r[3] ? '<span class="pass">Pass</span>' : '<span class="fail">Fail</span>') + '</td></tr>'; }).join('') +
-      '<tr><td class="l">Data gate: peaks inside the quoted strikes, enough quotes between them, quotes cover most of the probability</td><td>all</td><td>' + esc(dg.reason) + '</td><td>' + (f ? '<span class="pass">Pass</span>' : dg.peaks < 2 ? '—' : /fork/.test(dg.reason) ? '<span class="pass">Pass</span>' : '<span class="fail">Fail</span>') + '</td></tr></tbody>';
+      rows.map(function (r) { return '<tr><td class="l">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td><td>' + res(r[3], r[4]) + '</td></tr>'; }).join('') + '</tbody>';
   }
 
   // ---------- Overview ----------
@@ -222,8 +242,9 @@
   // ---------- Tabs and chart chips ----------
   var CHARTS = { prob: drawProb, cloud: drawCloud, skew: drawSkew, em: drawEM, fork: drawFork };
   function showTab(t) {
+    if (!D) return;
     tab = t;
-    document.querySelectorAll('[data-tab]').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === t); });
+    document.querySelectorAll('[data-tab]').forEach(function (b) { var on = b.getAttribute('data-tab') === t; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
     document.querySelectorAll('[data-pane]').forEach(function (p) { p.hidden = p.getAttribute('data-pane') !== t; });
     if (t === 'overview') drawOverview(); else if (t === 'chain') drawChain(); else if (t === 'charts') CHARTS[chart]();
     setUrl();
@@ -233,13 +254,21 @@
     document.querySelectorAll('[data-chart]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-chart') === chart); });
     CHARTS[chart](); setUrl();
   }
-  document.querySelectorAll('[data-tab]').forEach(function (b) { b.addEventListener('click', function () { showTab(b.getAttribute('data-tab')); }); });
-  document.querySelectorAll('[data-chart]').forEach(function (b) { b.addEventListener('click', function () { if (chart === 'fork' || b.getAttribute('data-chart') === 'fork') sel = []; showChart(b.getAttribute('data-chart')); }); });
-  document.querySelectorAll('#ov-ranges [data-r]').forEach(function (b) { b.addEventListener('click', function () { ovRange = +b.getAttribute('data-r'); document.querySelectorAll('#ov-ranges [data-r]').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); drawOverview(); }); });
+  var tabs = [].slice.call(document.querySelectorAll('[data-tab]'));
+  tabs.forEach(function (b, i) {
+    b.addEventListener('click', function () { showTab(b.getAttribute('data-tab')); });
+    b.addEventListener('keydown', function (ev) { // arrow keys move between tabs
+      var j = ev.key === 'ArrowRight' ? (i + 1) % tabs.length : ev.key === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length : -1;
+      if (j >= 0) { ev.preventDefault(); tabs[j].focus(); showTab(tabs[j].getAttribute('data-tab')); }
+    });
+  });
+  document.querySelectorAll('[data-chart]').forEach(function (b) { b.addEventListener('click', function () { if (!D) return; if (chart === 'fork' || b.getAttribute('data-chart') === 'fork') sel = []; var c = b.getAttribute('data-chart'); redraw(function () { showChart(c); }); }); });
+  document.querySelectorAll('#ov-ranges [data-r]').forEach(function (b) { b.addEventListener('click', function () { ovRange = +b.getAttribute('data-r'); document.querySelectorAll('#ov-ranges [data-r]').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); if (D) drawOverview(); }); });
 
   // ---------- Load ----------
   M.load(symParam).then(function (d) {
     D = d;
+    tabs.forEach(function (b) { b.disabled = false; });
     document.title = d.sym + ' · Implied';
     $('s-logo').textContent = d.sym.slice(0, 4);
     $('s-name').textContent = d.name;
@@ -249,13 +278,19 @@
     $('s-px').innerHTML = last.toFixed(2) + '<small>USD</small>';
     $('s-chg').textContent = (ch >= 0 ? '+' : '') + ch.toFixed(2) + ' (' + (ch >= 0 ? '+' : '') + pct(ch / prev, 2) + ')'; $('s-chg').className = 'chg ' + (ch >= 0 ? 'up' : 'down');
     var lt = d.time[d.time.length - 1]; $('s-asof').textContent = 'Last candle: ' + M.ymd(lt > 1e12 ? lt / 1000 : lt) + ' · options modelled in your browser';
-    if (d.custom) $('s-src').textContent = 'Your saved chain · from TrendSpider';
     if (!okList().length) { $('chart-pane').innerHTML = '<div class="notice warn"><i></i><span>No expiration in this chain could be modelled (too few liquid strikes).</span></div>'; return; }
     chart = CHARTS[chart] ? chart : 'prob';
     document.querySelectorAll('[data-chart]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-chart') === chart); });
     showTab(['overview', 'charts', 'chain', 'ts'].indexOf(tab) >= 0 ? tab : 'charts');
   }).catch(function (e) {
-    $('s-name').textContent = 'Could not load this ticker';
-    $('chart-pane').innerHTML = '<div class="notice err"><i></i><span>' + esc(e.message || e) + ' <a class="link" href="/analyze/">Analyze a chain</a></span></div>';
+    var list = Implied.TICKERS.map(function (t) { return '<a class="link" href="/symbol/?t=' + t.sym + '">' + t.sym + '</a>'; }).join(', ');
+    document.querySelector('.quote').hidden = true;
+    if (e && e.unknown != null) {
+      $('s-name').textContent = (e.unknown || 'This ticker') + ' is not on this site';
+      $('chart-pane').innerHTML = '<div class="notice warn"><i></i><span>This site only has simulated chains: ' + list + '. In TrendSpider, Implied reads the live chain of any ticker with listed US options. To check a real chain here, <a class="link" href="/analyze/">analyze one saved from TrendSpider</a>.</span></div>';
+    } else {
+      $('s-name').textContent = 'Could not load this ticker';
+      $('chart-pane').innerHTML = '<div class="notice err"><i></i><span>' + esc((e && e.message) || e) + '</span></div>';
+    }
   });
 })();

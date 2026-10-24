@@ -1,12 +1,12 @@
-<!--{"slug":"","title":"Implied probability distributions for every option chain","description":"Implied is a free, open-source TrendSpider indicator and chart site for the options market's full implied probability distribution: probability charts, projections, volatility skew, expected moves and the Fork.","scripts":["core","engine","charts","plot","results","market","pages/home"]}-->
+<!--{"slug":"","title":"The options market's implied distribution, on your TrendSpider chart","description":"Implied is a free, open-source TrendSpider indicator that paints the options market's full implied probability distribution into the future: skewed, fat-tailed, and sometimes split in two (the Fork).","scripts":["core","engine","charts","plot","results","market","pages/home"]}-->
 <section class="hero wrap">
   <h1>See the full probability distribution behind every option chain</h1>
-  <p class="sub">The odds the options market prices, from every liquid strike. Free here and on your TrendSpider chart.</p>
+  <p class="sub">A free TrendSpider indicator that paints the odds the options market prices, from every liquid strike, onto your chart. Explore it here on simulated chains.</p>
   <div class="search">
     <button type="button" class="box" data-search aria-label="Search ticker"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m14 14 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Search ticker</span><kbd>⌘K</kbd></button>
     <div class="hints"><a href="/symbol/?t=XERN">XERN</a>, <a href="/symbol/?t=XIDX">XIDX</a>, <a href="/symbol/?t=XHIV">XHIV</a>, <a href="/symbol/?t=XBEL">XBEL</a>, <a href="/analyze/">your own chain</a></div>
   </div>
-  <div class="ctas"><a class="btn primary lg" href="/symbol/?t=XERN">Get started</a><a class="btn ghost lg" href="/how-it-works/">Learn more <span class="arr">→</span></a></div>
+  <div class="ctas"><a class="btn primary lg" href="/install/">Install in TrendSpider</a><a class="btn ghost lg" href="/how-it-works/">How it works <span class="arr">→</span></a></div>
   <a class="announce" href="/fork/"><span class="new">New</span>The Fork: two-outcome detection before earnings<span class="more">Learn more ›</span></a>
 </section>
 
@@ -18,17 +18,17 @@
   <h3>Implied Distributions at a Glance</h3>
   <p class="desc">What each option chain prices out to its farthest modelled expiry, computed just now in your browser by the same script that runs in TrendSpider. These tickers are simulated chains, not market data.</p>
   <div class="tbl-wrap"><table class="tbl" id="mkt">
-    <thead><tr><th>Ticker</th><th>Name</th><th class="num">Price</th><th class="num">ATM IV (30d)</th><th class="num">Median</th><th class="num">95% Range</th><th class="num">Skew</th><th>Shape</th></tr></thead>
+    <thead><tr><th>Ticker</th><th>Name</th><th class="num">Price</th><th class="num">ATM IV (≈30d)</th><th class="num">Median</th><th class="num">95% Range</th><th class="num">Skew</th><th>Shape</th></tr></thead>
     <tbody><tr><td colspan="8" class="muted">Running implied.js…</td></tr></tbody>
   </table></div>
-  <div class="tfoot"><span id="mkt-n">Showing simulated tickers</span><span class="muted">Updated just now, in your browser</span></div>
+  <div class="tfoot"><span id="mkt-n">Showing simulated tickers</span><span class="muted">Computed in your browser by implied.js</span></div>
 </section>
 
 <section class="wrap trends" aria-labelledby="ch">
   <h2 class="h2" id="ch">Charts for every chain</h2>
-  <p class="desc" style="margin-top:10px">Every chart works on every expiration, and the implied distribution is free.</p>
+  <p class="desc" style="margin-top:10px">Every chart works on every expiration of the simulated chains.</p>
   <div class="fgrid" id="fgrid">
-    <a class="fcard" href="/symbol/?t=XERN&amp;tab=charts&amp;chart=prob"><span class="shot" data-shot="prob"></span><span class="tx"><b>Probability Distribution<em class="free">Free</em></b><span>Implied and lognormal densities, PDF or CDF, with odds between any two prices.</span></span></a>
+    <a class="fcard" href="/symbol/?t=XERN&amp;tab=charts&amp;chart=prob"><span class="shot" data-shot="prob"></span><span class="tx"><b>Probability Distribution</b><span>Implied and lognormal densities, PDF or CDF, with odds between any two prices.</span></span></a>
     <a class="fcard" href="/symbol/?t=XERN&amp;tab=charts&amp;chart=cloud"><span class="shot" data-shot="cloud"></span><span class="tx"><b>Projection Cloud</b><span>Percentile bands painted forward from the last candle, as on your TrendSpider chart.</span></span></a>
     <a class="fcard" href="/symbol/?t=XIDX&amp;tab=charts&amp;chart=skew"><span class="shot" data-shot="skew"></span><span class="tx"><b>Volatility Skew</b><span>Market implied volatility by strike, and the smooth smile Implied fits through it.</span></span></a>
     <a class="fcard" href="/symbol/?t=XIDX&amp;tab=charts&amp;chart=em"><span class="shot" data-shot="em"></span><span class="tx"><b>Expected Move</b><span>The straddle's symmetric move against the market's real 68% and 95% ranges.</span></span></a>
