@@ -36,3 +36,14 @@ test('the script page shows implied.js byte for byte (highlighting adds markup o
   assert.ok(/<span class="a">paint_projection<\/span>/.test(html), 'TrendSpider API names are marked');
   assert.ok(/<span class="s">\/\\D\/g<\/span>/.test(html), 'a regex literal is not read as division');
 });
+
+test('the published script never uses `new` (TrendSpider rejects it: "Using \'new\' in scripts is not currently allowed")', () => {
+  const { tokenize } = require('../tools/highlight.js');
+  const src = fs.readFileSync(path.join(__dirname, '../dist/implied.js'), 'utf8');
+  const lines = []; let line = 1;
+  for (const [type, text] of tokenize(src, new Set())) {
+    if (type === 'k' && text === 'new') lines.push(line);
+    line += text.split('\n').length - 1;
+  }
+  assert.deepEqual(lines, [], 'dist/implied.js uses `new` on line(s) ' + lines.join(', '));
+});

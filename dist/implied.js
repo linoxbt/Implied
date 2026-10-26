@@ -13,6 +13,11 @@
 const QS = [0.025, 0.10, 0.25, 0.50, 0.75, 0.90, 0.975];
 const INV_SQRT_2PI = 0.3989422804014327;
 
+// TrendSpider's script runtime does not allow the `new` keyword, so the
+// whole script uses plain arrays and objects (no typed arrays, Set, Map,
+// Date objects or constructors).
+const zeros = n => Array(n).fill(0);
+
 // ---------- Normal distribution and Black-76 ----------
 
 function normPdf(x) {
@@ -80,7 +85,7 @@ function impliedVol(price, F, K, T, D) {
 // not positive definite. O(n) per factorization and per solve, no allocation
 // per solve when `out` is passed.
 function pentaCholesky(d, e, f) {
-  const n = d.length, l0 = new Float64Array(n), l1 = new Float64Array(n), l2 = new Float64Array(n);
+  const n = d.length, l0 = zeros(n), l1 = zeros(n), l2 = zeros(n);
   for (let i = 0; i < n; i++) {
     const s = d[i] - (i >= 1 ? l1[i - 1] * l1[i - 1] : 0) - (i >= 2 ? l2[i - 2] * l2[i - 2] : 0);
     if (!(s > 0)) return null;
@@ -88,8 +93,8 @@ function pentaCholesky(d, e, f) {
     l1[i] = i + 1 < n ? (e[i] - (i >= 1 ? l2[i - 1] * l1[i - 1] : 0)) / l0[i] : 0;
     l2[i] = i + 2 < n ? f[i] / l0[i] : 0;
   }
-  const y = new Float64Array(n);
-  return (b, out = new Float64Array(n)) => {
+  const y = zeros(n);
+  return (b, out = zeros(n)) => {
     for (let i = 0; i < n; i++) {
       y[i] = (b[i] - (i >= 1 ? l1[i - 1] * y[i - 1] : 0) - (i >= 2 ? l2[i - 2] * y[i - 2] : 0)) / l0[i];
     }
@@ -233,7 +238,7 @@ function fitSmile(pts, T, boost = 1) {
   const grid = Array.from({ length: M }, (_, j) => kMin + j * hk);
   // Data term A0 (tridiagonal: a0 diagonal, a1 first off-diagonal) and the
   // second-difference penalty P (pentadiagonal: p0, p1, p2), as diagonals.
-  const a0 = new Float64Array(M), a1 = new Float64Array(M), rhs = new Float64Array(M);
+  const a0 = zeros(M), a1 = zeros(M), rhs = zeros(M);
   const obs = pts.map(p => {
     const j = Math.min(M - 2, Math.max(0, Math.floor((p.k - kMin) / hk)));
     const f = Math.min(1, Math.max(0, (p.k - grid[j]) / hk));
@@ -246,15 +251,15 @@ function fitSmile(pts, T, boost = 1) {
     rhs[o.j] += o.wt * b0 * o.y; rhs[o.j + 1] += o.wt * b1 * o.y;
   }
   const pen = 1 / (hk * hk * hk); // integral of squared curvature: sum (d2/hk^2)^2 * hk
-  const p0 = new Float64Array(M), p1 = new Float64Array(M), p2 = new Float64Array(M);
+  const p0 = zeros(M), p1 = zeros(M), p2 = zeros(M);
   for (let j = 1; j < M - 1; j++) { // each interior node adds (1, -2, 1)ᵀ(1, -2, 1) at j-1..j+1
     p0[j - 1] += pen; p0[j] += 4 * pen; p0[j + 1] += pen;
     p1[j - 1] -= 2 * pen; p1[j] -= 2 * pen;
     p2[j - 1] += pen;
   }
   const ridge = 1e-12 * Math.max(1, ...a0);
-  const d = new Float64Array(M), e = new Float64Array(M), f2 = new Float64Array(M);
-  const col = new Float64Array(M), sol = new Float64Array(M);
+  const d = zeros(M), e = zeros(M), f2 = zeros(M);
+  const col = zeros(M), sol = zeros(M);
 
   const solve = lam => {
     for (let i = 0; i < M; i++) { d[i] = a0[i] + lam * p0[i] + ridge; e[i] = a1[i] + lam * p1[i]; f2[i] = lam * p2[i]; }
@@ -540,10 +545,22 @@ function modelExpiry(byStrike, S, T, r, maxSpread, minStrikes) {
 // time in years, so the model's clock is the same either way.
 // NYSE full-day closures, used only in trading-day mode (PROJECTION_DAYS =
 // 'trading' in src/indicator.js). Extend the list each year.
-const MARKET_HOLIDAYS = new Set([
+const MARKET_HOLIDAYS = [
   '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
   '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18', '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24',
-]);
+];
+
+// Calendar date (UTC) of a day number (days since 1970-01-01), without Date
+// objects: Howard Hinnant's civil_from_days. Returns 'YYYY-MM-DD'.
+function dayKey(z) {
+  z += 719468;
+  const era = Math.floor(z / 146097), doe = z - era * 146097;
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365);
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100)), mp = Math.floor((5 * doy + 2) / 153);
+  const day = doy - Math.floor((153 * mp + 2) / 5) + 1, month = mp < 10 ? mp + 3 : mp - 9, year = yoe + era * 400 + (month <= 2 ? 1 : 0);
+  const pad = v => (v < 10 ? '0' : '') + v;
+  return year + '-' + pad(month) + '-' + pad(day);
+}
 
 function projectionTimeline(mode, lastTimeSec, maxDays) {
   const times = [0], barOfDay = { 0: 0 };
@@ -552,11 +569,11 @@ function projectionTimeline(mode, lastTimeSec, maxDays) {
     return { times, barOfDay };
   }
   const ms = lastTimeSec > 1e12 ? lastTimeSec : lastTimeSec * 1000;
-  const start = new Date(Number.isFinite(ms) ? ms : Date.now());
+  const start = Math.floor((Number.isFinite(ms) ? ms : Date.now()) / 86400000); // day number, UTC
   let bar = 0;
   for (let d = 1; d <= maxDays; d++) {
-    const day = new Date(start.getTime() + d * 86400000), dow = day.getUTCDay();
-    if (dow !== 0 && dow !== 6 && !MARKET_HOLIDAYS.has(day.toISOString().slice(0, 10))) { bar++; times.push(d / 365); }
+    const z = start + d, dow = ((z + 4) % 7 + 7) % 7; // 1970-01-01 was a Thursday (4); 0 = Sunday
+    if (dow !== 0 && dow !== 6 && !MARKET_HOLIDAYS.includes(dayKey(z))) { bar++; times.push(d / 365); }
     barOfDay[d] = bar;
   }
   return { times, barOfDay };
@@ -662,9 +679,9 @@ function selectExpiries(o) {
     .sort((a, b) => a.day - b.day);
   // For each target horizon, model the nearest expiry; if it is too thin,
   // try its neighbours (up to four).
-  const modelled = new Map();
+  const modelled = {};
   const shapeOf = i => {
-    if (!modelled.has(i)) {
+    if (!(i in modelled)) {
       const c = candidates[i], dte = Number(c.x.dte);
       let shape = null;
       try {
@@ -672,33 +689,33 @@ function selectExpiries(o) {
       } catch (err) {
         shape = null; // a bad expiry is skipped; another one takes its place
       }
-      modelled.set(i, shape && shape.q.every(Number.isFinite) ? Object.assign({ dte, day: c.day, key: c.key }, shape) : null);
+      modelled[i] = shape && shape.q.every(Number.isFinite) ? Object.assign({ dte, day: c.day, key: c.key }, shape) : null;
     }
-    return modelled.get(i);
+    return modelled[i];
   };
-  const chosen = new Set();
+  const chosen = []; // indices of the expiries drawn
   if (candidates.length) {
     // The nearest expiry that models is always drawn: it is where a
     // post-earnings Fork is sharpest.
-    for (let i = 0; i < Math.min(4, candidates.length); i++) if (shapeOf(i)) { chosen.add(i); break; }
+    for (let i = 0; i < Math.min(4, candidates.length); i++) if (shapeOf(i)) { chosen.push(i); break; }
     for (const order of expiryPlan(candidates.map(c => c.day), o.count)) {
       for (const i of order.slice(0, 4)) {
-        if (chosen.has(i)) continue;
-        if (shapeOf(i)) { chosen.add(i); break; }
+        if (chosen.includes(i)) continue;
+        if (shapeOf(i)) { chosen.push(i); break; }
       }
     }
     // Any other expiry inside the cloud that prices two outcomes is added, so
     // the Fork is never lost between the horizons.
-    const lastDay = Math.max(-1, ...[...chosen].map(i => candidates[i].day));
+    const lastDay = Math.max(-1, ...chosen.map(i => candidates[i].day));
     let scanned = 0;
     for (let i = 0; i < candidates.length && candidates[i].day <= Math.min(lastDay, FORK_SCAN_DAYS) && scanned < FORK_SCAN_MAX; i++) {
-      if (chosen.has(i)) continue;
+      if (chosen.includes(i)) continue;
       scanned++;
       const s = shapeOf(i);
-      if (s && s.fork) chosen.add(i);
+      if (s && s.fork) chosen.push(i);
     }
   }
-  const shapes = [...chosen].map(i => modelled.get(i)).sort((a, b) => a.day - b.day);
+  const shapes = chosen.map(i => modelled[i]).sort((a, b) => a.day - b.day);
   // The chain's own spot: the nearest expiry's parity forward, discounted.
   // Unlike the quoted last price it cannot be a stale or after-hours print.
   const spot = shapes.length ? shapes[0].F * Math.exp(-o.rate * shapes[0].T) : o.spot;
@@ -763,8 +780,9 @@ const COLORS = { band: '#5b8def', median: '#9aa0b4', fork: '#ffb347', valley: '#
 // problem is recorded here, the empty series are painted, and the message is
 // raised at the very end.
 const NO_DATA = 'No options data for ' + current.ticker + '. Implied needs a ticker with listed options and an OPRA subscription.';
-function Stop(message) { this.message = message; }
-function need(cond, message) { if (!cond) throw new Stop(message); }
+// A planned stop with a message for the chart (TrendSpider scripts cannot use
+// `new`, so it is a tagged plain object, not an Error subclass).
+function need(cond, message) { if (!cond) throw { impliedStop: true, message }; }
 
 async function buildCloud() {
   need(String(current.resolution).toUpperCase() === 'D', 'Implied runs on the Daily timeframe only.');
@@ -837,7 +855,7 @@ let cloud;
 try {
   cloud = await buildCloud();
 } catch (err) {
-  if (!(err instanceof Stop)) throw err;
+  if (!(err && err.impliedStop)) throw err;
   cloud = { problem: err.message, shapes: [], timeline: { times: [0], barOfDay: { 0: 0 } }, bands: QS.map(() => [null]), scale: 1 };
 }
 const expiryShapes = cloud.shapes, projTimeline = cloud.timeline, bandValues = cloud.bands, SCALE = cloud.scale;

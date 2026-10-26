@@ -17,6 +17,10 @@ Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider'
 | Text on the chart | `paint_overlay()` draws a styled table, with Chart.js charts, using theme colors | A top-left summary panel: mini distribution chart, median and 95% range, skew sentence, Fork prices |
 | Request limits | Up to 6 data requests besides price history | Uses 2, sent in parallel |
 
+## Found in the live run
+
+- TrendSpider's runtime rejects the `new` keyword ("Using 'new' in scripts is not currently allowed"). The script uses none (plain arrays and objects only), and a test fails the build if one appears.
+
 ## Assumptions the stand-in makes (confirm live)
 
 | Assumption | If it is wrong |

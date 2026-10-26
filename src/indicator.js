@@ -38,8 +38,9 @@ const COLORS = { band: '#5b8def', median: '#9aa0b4', fork: '#ffb347', valley: '#
 // problem is recorded here, the empty series are painted, and the message is
 // raised at the very end.
 const NO_DATA = 'No options data for ' + current.ticker + '. Implied needs a ticker with listed options and an OPRA subscription.';
-function Stop(message) { this.message = message; }
-function need(cond, message) { if (!cond) throw new Stop(message); }
+// A planned stop with a message for the chart (TrendSpider scripts cannot use
+// `new`, so it is a tagged plain object, not an Error subclass).
+function need(cond, message) { if (!cond) throw { impliedStop: true, message }; }
 
 async function buildCloud() {
   need(String(current.resolution).toUpperCase() === 'D', 'Implied runs on the Daily timeframe only.');
@@ -112,7 +113,7 @@ let cloud;
 try {
   cloud = await buildCloud();
 } catch (err) {
-  if (!(err instanceof Stop)) throw err;
+  if (!(err && err.impliedStop)) throw err;
   cloud = { problem: err.message, shapes: [], timeline: { times: [0], barOfDay: { 0: 0 } }, bands: QS.map(() => [null]), scale: 1 };
 }
 const expiryShapes = cloud.shapes, projTimeline = cloud.timeline, bandValues = cloud.bands, SCALE = cloud.scale;
