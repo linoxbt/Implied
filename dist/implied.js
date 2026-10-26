@@ -757,8 +757,8 @@ describe_indicator('Implied', 'price', { shortName: 'Implied' });
 // ---------- Settings ----------
 const EXPIRIES = input.number('Expirations to project', 4, { min: 1, max: 8 });
 const RATE_PCT = input.number('Risk-free rate (%)', 4.0, { min: 0, max: 15 });
-const MAX_SPREAD = input.number('Max bid-ask spread (fraction of mid)', 0.5, { min: 0.05, max: 2 });
-const MIN_STRIKES = input.number('Min usable strikes per expiry', 8, { min: 5, max: 60 });
+const MAX_SPREAD = input.number('Max spread (of mid)', 0.5, { min: 0.05, max: 2 });
+const MIN_STRIKES = input.number('Min strikes per expiry', 8, { min: 5, max: 60 });
 const SHOW_FORK = input.boolean('Show Fork', true);
 
 // The second argument of options_data_for_all_expirations is the number of

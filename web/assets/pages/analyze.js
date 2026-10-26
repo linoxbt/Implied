@@ -48,7 +48,7 @@
     refs.status.textContent = 'running…';
     var out = await Implied.runScript({
       ticker: String(data.ticker || 'TICKER'), schedule: data.schedule, chain: data.chain, close: c.close, time: c.time,
-      inputs: { 'Expirations to project': s.expirations, 'Risk-free rate (%)': s.rate, 'Max bid-ask spread (fraction of mid)': s.spread, 'Min usable strikes per expiry': s.minStrikes },
+      inputs: { 'Expirations to project': s.expirations, 'Risk-free rate (%)': s.rate, 'Max spread (of mid)': s.spread, 'Min strikes per expiry': s.minStrikes },
     });
     if (my !== seq) return; // a newer run started meanwhile
     try {

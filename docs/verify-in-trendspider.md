@@ -19,6 +19,7 @@ Every TrendSpider call in `src/indicator.js` is now checked against TrendSpider'
 
 ## Found in the live run
 
+- Setting names have a length limit ("input(): name is too lengthy"): 36 characters failed, 22 passed. The settings are now named within 22 characters, and the stand-in runtime rejects longer ones.
 - TrendSpider's runtime rejects the `new` keyword ("Using 'new' in scripts is not currently allowed"). The script uses none (plain arrays and objects only), and a test fails the build if one appears.
 
 ## Assumptions the stand-in makes (confirm live)

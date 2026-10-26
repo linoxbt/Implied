@@ -197,8 +197,8 @@ test('spot price missing from the chain falls back to the last close', async () 
 test('declares exactly five settings with the spec defaults', async () => {
   const out = await scenario('SPY');
   assert.deepEqual(out.inputs.map(i => [i.kind, i.label, i.def]), [
-    ['number', 'Expirations to project', 4], ['number', 'Risk-free rate (%)', 4.0], ['number', 'Max bid-ask spread (fraction of mid)', 0.5],
-    ['number', 'Min usable strikes per expiry', 8], ['boolean', 'Show Fork', true]]);
+    ['number', 'Expirations to project', 4], ['number', 'Risk-free rate (%)', 4.0], ['number', 'Max spread (of mid)', 0.5],
+    ['number', 'Min strikes per expiry', 8], ['boolean', 'Show Fork', true]]);
 });
 
 test('performance: 8 expiries model and paint inside the spec\'s 3-second budget, one request of each kind', async () => {

@@ -122,8 +122,8 @@ test('the panel says when the tails are extrapolated beyond the quoted strikes (
 test('every setting reaches the model: spread limit, minimum strikes, rate magnitude (G9)', async () => {
   const run = inputs => runIndicator({ ticker: 'SPY', ...fx.SCENARIOS.SPY(), ...fx.candles(580), inputs });
   const base = await run({});
-  assert.match((await run({ 'Min usable strikes per expiry': 60 })).error, /^Not enough liquid strikes/);
-  assert.match((await run({ 'Max bid-ask spread (fraction of mid)': 0.03 })).error, /^Not enough liquid strikes/); // SPY's quotes are ~4% wide
+  assert.match((await run({ 'Min strikes per expiry': 60 })).error, /^Not enough liquid strikes/);
+  assert.match((await run({ 'Max spread (of mid)': 0.03 })).error, /^Not enough liquid strikes/); // SPY's quotes are ~4% wide
   // The forwards come from put-call parity, so the rate only enters through
   // discounting: 4% -> 14% moves the 49-day median up by about 0.06%. A rate
   // read ten times too small (1.4%) moves it down; ten times too big, by 0.5%+.

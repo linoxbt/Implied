@@ -92,8 +92,8 @@ Real quotes are licensed data and are not in this repository. To repeat the chec
 | --- | --- | --- | --- |
 | Expirations to project | 4 | 1–8 | Target horizons the cloud is drawn through (4: about 1 week, 2 weeks, 1 month, 2 months, plus the nearest expiry; 8 reaches about 3 months) |
 | Risk-free rate (%) | 4.0 | 0–15 | Discounting in parity and pricing |
-| Max bid-ask spread (fraction of mid) | 0.5 | 0.05–2 | Drops stale, illiquid quotes (a spread of $0.05 or less is always kept) |
-| Min usable strikes per expiry | 8 | 5–60 | Skips expiries too thin to fit |
+| Max spread (of mid) | 0.5 | 0.05–2 | Drops stale, illiquid quotes (a spread of $0.05 or less is always kept) |
+| Min strikes per expiry | 8 | 5–60 | Skips expiries too thin to fit |
 | Show Fork | On | On / off | Hides the Fork marks and the Fork line in the panel |
 
 ## On-chart messages

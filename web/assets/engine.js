@@ -56,7 +56,12 @@
     var out = { name: null, placement: null, inputs: [], projections: [], fills: [], overlays: [], error: null, crash: false, requests: [] };
     var ids = new Map();
     function rule(cond, msg) { if (!cond) throw new Error('TrendSpider rule broken: ' + msg); }
-    function declare(kind, label, def, o) { out.inputs.push({ kind: kind, label: label, def: def, opts: o }); return label in inputs ? inputs[label] : def; }
+    // TrendSpider rejects long setting names ("input(): name is too lengthy"):
+    // 36 characters failed live, 22 passed, so 22 is the limit checked here.
+    function declare(kind, label, def, o) {
+      rule(typeof label === 'string' && label.length <= 22, 'input(): name is too lengthy ("' + label + '")');
+      out.inputs.push({ kind: kind, label: label, def: def, opts: o }); return label in inputs ? inputs[label] : def;
+    }
     var g = {
       describe_indicator: function (name, placement) { out.name = name; out.placement = placement; },
       current: { ticker: opts.ticker || 'DEMO', resolution: opts.resolution || 'D' },
