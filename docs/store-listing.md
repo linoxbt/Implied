@@ -30,7 +30,7 @@ HOW IT WORKS
 For each expiry, Implied cleans the out-of-the-money quotes, finds the forward price from put-call parity, and solves implied volatility. It then fits a smooth volatility smile, weighting each quote by its bid-ask spread and letting the data choose the smoothing. Finally it takes the second derivative of the rebuilt call prices with respect to strike (Breeden-Litzenberger, 1978). That gives the risk-neutral density, which is turned into percentile bands and checked for two peaks. Between expiries the cloud widens with the square root of time.
 
 SETTINGS
-Expirations to project (default 4: target horizons of about 1 week, 2 weeks, 1 month and 2 months, plus the nearest expiry; 8 reaches about 3 months), risk-free rate (4%), max bid-ask spread (0.5 of mid; spreads of $0.05 or less are always kept), minimum strikes per expiry (8), Fork on/off.
+Expirations to project (default 4: target horizons of about 1 week, 2 weeks, 1 month and 2 months, plus the nearest expiry; 8 reaches about 3 months), risk-free rate (4%), Max spread (of mid) (0.5; spreads of $0.05 or less are always kept), Min strikes per expiry (8), Show Fork (on).
 
 REQUIREMENTS
 Daily timeframe. Tickers with listed US options. TrendSpider's OPRA options data add-on. Live two-sided quotes (bid and ask). On tickers without options or without quotes, Implied shows a message instead of drawing.
